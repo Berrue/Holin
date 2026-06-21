@@ -1,0 +1,15 @@
+# Pack de assets original (ya están extraídos en holin/assets/kenney_city/)
+*.zip
+
+# Cache e import de Godot (holin/.gitignore ya lo cubre; redundante por las dudas)
+holin/.godot/
+holin/android/
+
+# Capturas / archivos temporales de validación
+holin/_*.png
+holin/_*.png.import
+
+# Basura del SO
+Thumbs.db
+.DS_Store
+desktop.ini

@@ -1,0 +1,119 @@
+[gd_scene load_steps=8 format=3 uid="uid://b0main0fase001"]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="PackedScene" path="res://scenes/hole.tscn" id="2_hole"]
+[ext_resource type="PackedScene" path="res://scenes/swallowable.tscn" id="3_swl"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.13, 0.14, 0.18, 0.96)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ground"]
+albedo_color = Color(0.58, 0.62, 0.55, 1)
+roughness = 1.0
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
+material = SubResource("StandardMaterial3D_ground")
+size = Vector2(80, 80)
+
+[sub_resource type="Environment" id="Environment_main"]
+background_mode = 1
+background_color = Color(0.45, 0.62, 0.78, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.55, 0.58, 0.62, 1)
+ambient_light_energy = 0.6
+
+[node name="Main" type="Node3D"]
+script = ExtResource("1_main")
+swallowable_scene = ExtResource("3_swl")
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("PlaneMesh_ground")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_main")
+
+[node name="Hole" parent="." instance=ExtResource("2_hole")]
+
+[node name="Swallowables" type="Node3D" parent="."]
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="ScoreLabel" type="Label" parent="UI"]
+offset_left = 18.0
+offset_top = 14.0
+offset_right = 420.0
+offset_bottom = 52.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 28
+text = "Puntos: 0"
+
+[node name="TimerLabel" type="Label" parent="UI"]
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -110.0
+offset_top = 12.0
+offset_right = 110.0
+offset_bottom = 80.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 52
+horizontal_alignment = 1
+text = "2:00"
+
+[node name="GameOver" type="Control" parent="UI"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Dim" type="ColorRect" parent="UI/GameOver"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.65)
+
+[node name="Center" type="CenterContainer" parent="UI/GameOver"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="Panel" type="PanelContainer" parent="UI/GameOver/Center"]
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="Margin" type="MarginContainer" parent="UI/GameOver/Center/Panel"]
+theme_override_constants/margin_left = 44
+theme_override_constants/margin_top = 36
+theme_override_constants/margin_right = 44
+theme_override_constants/margin_bottom = 36
+
+[node name="VBox" type="VBoxContainer" parent="UI/GameOver/Center/Panel/Margin"]
+theme_override_constants/separation = 18
+
+[node name="Title" type="Label" parent="UI/GameOver/Center/Panel/Margin/VBox"]
+theme_override_font_sizes/font_size = 40
+horizontal_alignment = 1
+text = "¡Se acabó el tiempo!"
+
+[node name="ScoreResult" type="Label" parent="UI/GameOver/Center/Panel/Margin/VBox"]
+theme_override_font_sizes/font_size = 30
+horizontal_alignment = 1
+text = "Puntos: 0"
+
+[node name="ReplayButton" type="Button" parent="UI/GameOver/Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(280, 66)
+theme_override_font_sizes/font_size = 28
+text = "Jugar de nuevo"
+
+[node name="MenuButton" type="Button" parent="UI/GameOver/Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(280, 66)
+theme_override_font_sizes/font_size = 28
+text = "Menú"
