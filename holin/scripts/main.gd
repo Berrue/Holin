@@ -8,24 +8,68 @@ extends Node3D
 const MENU_SCENE := "res://scenes/main_menu.tscn"
 const GAME_DURATION := 120.0
 
+# --- Objetivo de la partida ---
+# La partida se gana llegando al puntaje, no sobreviviendo al reloj. Un objetivo
+# cerrado es lo que genera el "una más": un high score suelto no se falla por
+# poco, un 740 de 800 sí. El reloj pasa a ser la presión, no la meta.
+## Calibrado con devtools/stress.gd, no a ojo.
+##
+## La curva de puntaje es muy acelerada —el bot lleva ~300 puntos a los 40 s y
+## ~3300 a los 120— porque el agujero crece y cada bocado vale más. Para
+## recalibrar: poner un número inalcanzable acá, correr el stress y leer la curva.
+##
+## OJO: este número depende de los rivales. Sin ellos el bot llegaba a 1800; con
+## tres compitiendo por la misma comida se queda en ~1580. Cualquier cambio en la
+## cantidad de rivales o en su handicap obliga a rehacerlo.
+const SCORE_GOAL := 1200
+const HINT_SECS := 4.5  # cuánto queda en pantalla el cartel de arranque
+
+# --- Combo ---
+# Encadenar bocados multiplica el PUNTAJE, nunca la XP: si tocara la XP movería
+# la curva de crecimiento y con ella todo el balance de tamaños.
+## Ventana corta a propósito: cruzar de una manzana a otra lleva ~2 s, así que
+## el combo se corta al viajar. Con 1.8 s no se cortaba nunca en el juego tardío
+## y el multiplicador quedaba clavado en x4, o sea que dejaba de ser una decisión.
+const COMBO_WINDOW := 1.2   # segundos para encadenar el siguiente
+const COMBO_PER_STEP := 4   # cada cuántos bocados sube un escalón el multiplicador
+const COMBO_MAX_MULT := 4
+
 # El piso usa shader propio: recorta la boca del pozo y se oscurece en el borde.
 const GROUND_SHADER := preload("res://shaders/ground_hole.gdshader")
+# Recorta un pedazo del modelo por franja de altura (ver el shader).
+const PIECE_SHADER := preload("res://shaders/building_piece.gdshader")
 
 # Tipos por preload en vez de class_name: la caché de clases globales vive en
 # .godot/ (ignorada por git) y sin ella el proyecto no arranca fuera del editor.
 const HoleRef = preload("res://scripts/hole.gd")
 const SwallowableRef = preload("res://scripts/swallowable.gd")
 const Sfx = preload("res://scripts/sfx.gd")
+const JoystickRef = preload("res://scripts/virtual_joystick.gd")
+const RivalRef = preload("res://scripts/rival_hole.gd")
+const ArrowsRef = preload("res://scripts/rival_arrows.gd")
+const BoardRef = preload("res://scripts/leaderboard.gd")
+
+# --- Rivales ---
+const RIVALS := [
+	{"nombre": "Chillkill", "color": Color(0.95, 0.85, 0.2)},
+	{"nombre": "Bache", "color": Color(0.35, 0.95, 0.45)},
+	{"nombre": "Sumidero", "color": Color(0.95, 0.4, 0.75)},
+]
+const RIVAL_START_CLEAR := 18.0  # a qué distancia mínima del jugador arrancan
 
 @onready var hole := $Hole as HoleRef
 @onready var swallowables: Node3D = $Swallowables
 @onready var level_label: Label = $UI/ScorePanel/VBox/Row/Badge/LevelLabel
 @onready var badge: PanelContainer = $UI/ScorePanel/VBox/Row/Badge
 @onready var score_value: Label = $UI/ScorePanel/VBox/Row/ScoreCol/ScoreValue
-@onready var xp_bar: ProgressBar = $UI/ScorePanel/VBox/XPBar
-@onready var xp_label: Label = $UI/ScorePanel/VBox/XPBar/XPLabel
+@onready var goal_bar: ProgressBar = $UI/ScorePanel/VBox/GoalBar
+@onready var goal_label: Label = $UI/ScorePanel/VBox/GoalBar/GoalLabel
 @onready var timer_label: Label = $UI/TimerPanel/TimerLabel
+@onready var joystick := $UI/Joystick as JoystickRef
+@onready var rival_arrows := $UI/RivalArrows as ArrowsRef
+@onready var leaderboard := $UI/ScorePanel/VBox/Leaderboard as BoardRef
 @onready var game_over: Control = $UI/GameOver
+@onready var game_over_title: Label = $UI/GameOver/Center/Panel/Margin/VBox/Title
 @onready var final_score_label: Label = $UI/GameOver/Center/Panel/Margin/VBox/ScoreResult
 @onready var replay_button: Button = $UI/GameOver/Center/Panel/Margin/VBox/ReplayButton
 @onready var menu_button: Button = $UI/GameOver/Center/Panel/Margin/VBox/MenuButton
@@ -37,6 +81,11 @@ var time_left := GAME_DURATION
 var score := 0
 var count := 0
 var running := true
+var won := false
+var combo := 0
+var rivals: Array = []
+var _combo_left := 0.0
+var _combo_label: Label
 
 # --- Layout de la ciudad ---
 const ROAD_LINES := [-32, -16, 0, 16, 32]   # ejes de las calles (X y Z)
@@ -112,12 +161,38 @@ const XP_URBAN_PROP := 3
 const XP_PARK_PROP := 2
 const XP_PEDESTRIAN := 1
 
+# --- Golpe al tragar ---
+# Los umbrales están en swallow_size, que es el ancho real del objeto en metros:
+# props y peatones 0.4-0.9, árboles 1.0-1.6, autos 1.5-1.9, edificios 2.4-4.0,
+# rascacielos 3.4-4.8.
+const IMPACT_MIN_SIZE := 1.2    # abajo de esto no pasa nada: sacudir por un cesto es ruido
+const IMPACT_FULL_SIZE := 4.5   # de acá para arriba, golpe máximo
+const IMPACT_CURVE := 1.4       # >1 aplasta la parte baja: el auto se insinúa, el edificio pega
+const HITSTOP_MIN_SIZE := 2.8   # frenar el tiempo sólo de edificio para arriba
+const HITSTOP_SCALE := 0.08
+const HITSTOP_SECS := 0.07
+# Un derrumbe manda tres pedazos a la boca en menos de medio segundo. Sin este
+# piso entre frenos, el juego tartamudea tres veces seguidas.
+const HITSTOP_COOLDOWN := 0.35
+
+# --- Derrumbe por pedazos ---
+const PIECES_SKYSCRAPER := 3
+const PIECES_BUILDING := 2
+
 const SHIRT_COLORS := [
 	Color(0.85, 0.30, 0.30), Color(0.30, 0.50, 0.85), Color(0.35, 0.70, 0.40),
 	Color(0.90, 0.75, 0.30), Color(0.70, 0.40, 0.80), Color(0.95, 0.55, 0.25),
 ]
 
 var _strip_mesh: BoxMesh
+# Recursos compartidos. El renderer junta en un solo draw call todo lo que
+# comparta el par (malla, material), así que crear una malla y un material por
+# instancia son draw calls regalados: 32 peatones pasan de 6 a 128.
+var _ped_body_mesh: CapsuleMesh
+var _ped_head_mesh: SphereMesh
+var _shirt_mats: Array[StandardMaterial3D] = []
+var _skin_mat: StandardMaterial3D
+var _grass_mat: ShaderMaterial
 var _city: Node3D
 var _park_blocks := {}       # Vector2i(ix, iz) -> true: manzanas que son parque
 var _placed: Array[Vector3] = []  # (x, z, radio) ya ocupados: evita superposiciones
@@ -125,8 +200,11 @@ var _score_shown := 0.0
 var _score_tween: Tween
 var _bar_tween: Tween
 var _timer_urgent := false
+var _hitstop_until := 0.0    # msec del reloj REAL en que se suelta el freno
+var _hitstop_ready_at := 0.0 # msec antes del cual no se admite otro freno
 
 func _ready() -> void:
+	Engine.time_scale = 1.0  # red de contención: si una partida anterior murió frenada
 	# Orientar el sol en código (evita serializar una base rotada en el .tscn).
 	# X = -40: el sol pega desde 40° sobre el horizonte (sol bajo, de tarde), que
 	# da sombras largas y marcadas — un edificio de 10 m tira unos 12 m. Y = -35
@@ -157,11 +235,16 @@ func _ready() -> void:
 	score_value.pivot_offset = Vector2(0.0, 22.0)
 	badge.pivot_offset = Vector2(26.0, 26.0)
 	_placed.append(Vector3(0.0, 0.0, START_CLEAR))  # el agujero arranca despejado
+	_build_shared_assets()
 	_build_city_ground()
 	_pick_parks()
 	_populate_blocks()
 	_spawn_cars_on_roads()
 	_spawn_pedestrians()
+	_spawn_rivals()
+	_build_combo_label()
+	_show_hint()
+	hole.joystick = joystick  # el joystick es del HUD, el agujero sólo lo lee
 	hole.swallowed.connect(_on_swallowed)
 	hole.leveled_up.connect(_on_leveled_up)
 	replay_button.pressed.connect(_on_replay)
@@ -173,17 +256,39 @@ func _ready() -> void:
 # ----------------------------------------------------------------------------
 
 func _process(delta: float) -> void:
+	# Primero de todo y FUERA del `running`: si el hitstop quedara enganchado, el
+	# juego entero se arrastra al 8% de velocidad. Y time_scale es del Engine, no
+	# del árbol, así que ni recargar la escena lo arregla.
+	if Engine.time_scale < 1.0 and Time.get_ticks_msec() >= _hitstop_until:
+		Engine.time_scale = 1.0
 	if not running:
 		return
+	if _combo_left > 0.0:
+		_combo_left -= delta
+		if _combo_left <= 0.0:
+			_reset_combo()
 	time_left -= delta
 	if time_left <= 0.0:
 		time_left = 0.0
-		_end_game()
+		_end_game(false)
 	_update_timer_label()
 
-func _end_game() -> void:
+func _end_game(win: bool) -> void:
 	running = false
-	final_score_label.text = "Puntos: %s" % _format_number(score)
+	won = win
+	# Con el árbol pausado _process deja de correr, así que el hitstop no se
+	# soltaría solo: hay que devolverlo acá o el game over queda en cámara lenta.
+	Engine.time_scale = 1.0
+	joystick.release()  # si el timer corta a mitad de un arrastre, sacarlo de pantalla
+	if win:
+		game_over_title.text = "¡Objetivo cumplido!"
+		game_over_title.add_theme_color_override("font_color", Color(0.55, 1.0, 0.5))
+		final_score_label.text = "%s puntos, con %d s de sobra" % [
+			_format_number(score), int(ceil(time_left))]
+	else:
+		game_over_title.text = "¡Se acabó el tiempo!"
+		final_score_label.text = "%s de %s puntos" % [
+			_format_number(score), _format_number(SCORE_GOAL)]
 	game_over.visible = true
 	# El tween cuelga del reproductor, que procesa siempre: por eso corre igual
 	# con el árbol pausado.
@@ -202,12 +307,149 @@ func _on_object_consumed(xp: int) -> void:
 	# El objeto llegó al fondo del pozo: recién ahora se acredita la XP.
 	hole.gain_xp(xp)
 
+func _on_object_fell_in(size: float, at: Vector3, weight: float) -> void:
+	# Golpe proporcional a lo que entró: un cesto no mueve nada, un rascacielos
+	# sacude el teléfono. Este es el momento que nos diferencia y hasta ahora
+	# pasaba en silencio.
+	var t := clampf(inverse_lerp(IMPACT_MIN_SIZE, IMPACT_FULL_SIZE, size), 0.0, 1.0)
+	if t <= 0.0:
+		return
+	var punch := pow(t, IMPACT_CURVE) * weight
+	hole.shake(hole.shake_strength * punch)
+	hole.pulse_rim(0.06 + 0.14 * punch, at)
+	hole.burst_dust(size, punch, at)
+	if size >= HITSTOP_MIN_SIZE:
+		_hitstop()
+
+func _hitstop() -> void:
+	# Freno brevísimo justo cuando la mole cruza la boca: la imagen se clava un
+	# instante y arranca de golpe. Es lo que le da peso a la caída.
+	# El plazo se mide con el reloj real (a Time.get_ticks_msec no lo afecta
+	# time_scale): con un contador por delta, frenar el tiempo frenaría también
+	# al contador que lo tiene que soltar, y el freno duraría 12 veces más.
+	var now := float(Time.get_ticks_msec())
+	if now < _hitstop_ready_at:
+		return
+	_hitstop_ready_at = now + HITSTOP_COOLDOWN * 1000.0
+	Engine.time_scale = HITSTOP_SCALE
+	_hitstop_until = now + HITSTOP_SECS * 1000.0
+
+# ----------------------------------------------------------------------------
+# Derrumbe: un edificio no cae entero, se parte
+# ----------------------------------------------------------------------------
+
+func _on_wants_break(obj: SwallowableRef) -> void:
+	# Reemplaza el edificio por N pedazos apilados en el mismo lugar. Se hace acá
+	# y no al generar la ciudad porque pre-partir las ~40 manzanas triplicaría los
+	# draw calls de edificios, con un material distinto por pedazo (no batchean).
+	# Así sólo pagan el costo los dos o tres que se están viniendo abajo.
+	var model := obj.get_node_or_null("Visual/Model") as Node3D
+	if model == null:
+		return
+	var meshes := _all_meshes(model)
+	if meshes.is_empty():
+		return
+	var mesh: Mesh = meshes[0].mesh
+	var src := mesh.surface_get_material(0) as StandardMaterial3D
+	var tex: Texture2D = src.albedo_texture if src != null else null
+	var native := mesh.get_aabb()
+
+	var n: int = obj.break_pieces
+	var piece_h: float = obj.world_size.y / float(n)
+	var piece_xp: int = maxi(1, int(round(float(obj.xp_value) / float(n))))
+	var piece_mass: float = obj.mass / float(n)
+	for i in n:
+		var p := swallowable_scene.instantiate() as SwallowableRef
+		p.swallow_size = obj.swallow_size  # el pedazo no es "más fácil": es el mismo ancho
+		p.xp_value = piece_xp
+		p.sfx_kind = obj.sfx_kind
+		p.impact_weight = 1.0 / float(n)
+		p.consumed.connect(_on_object_consumed)
+		p.fell_in.connect(_on_object_fell_in)
+		var pv := p.get_node("Visual") as Node3D
+		(pv.get_node("MeshInstance3D") as MeshInstance3D).visible = false
+		# Cada pedazo dibuja el modelo entero y recorta su franja. El modelo se
+		# baja lo que sube el corte, porque el origen del pedazo está en SU base
+		# (igual que el de cualquier swallowable).
+		# Sin DUPLICATE_USE_INSTANTIATION: con esa bandera Godot rearma el nodo
+		# desde el .glb original y se pierde la escala con que se plantó en la ciudad.
+		var clone := model.duplicate(
+			Node.DUPLICATE_SIGNALS | Node.DUPLICATE_GROUPS | Node.DUPLICATE_SCRIPTS) as Node3D
+		clone.position.y -= piece_h * float(i)
+		pv.add_child(clone)
+		# La franja va en unidades de la malla, no del mundo: así no hace falta
+		# saber cuánto se escaló el modelo al plantarlo.
+		var lo := native.position.y + native.size.y * float(i) / float(n)
+		var hi := native.position.y + native.size.y * float(i + 1) / float(n)
+		if i == 0:
+			lo -= 0.01   # que el piso y el techo no se pierdan por redondeo
+		if i == n - 1:
+			hi += 0.01
+		for m in _all_meshes(clone):
+			m.material_override = _make_piece_mat(tex, lo, hi)
+
+		swallowables.add_child(p)
+		# Hereda la orientación completa, no sólo la posición: cuando se parte ya
+		# viene volcado, y apilar los pedazos sobre el eje Y del mundo los dejaría
+		# cruzados respecto de la torre en vez de alineados con ella.
+		var up := obj.global_transform.basis.y
+		p.global_transform = Transform3D(obj.global_transform.basis,
+			obj.global_position + up * (piece_h * float(i)))
+		p.setup_body(Vector3(obj.world_size.x, piece_h, obj.world_size.z))
+		p.mass = piece_mass  # setup_body la calcula por swallow_size y daría la del entero
+		p.release_into(hole)
+		# Hereda el envión del edificio entero y suma un empujón lateral que crece
+		# con la altura: una torre que se viene abajo se abre desde arriba, no baja
+		# como un acordeón perfectamente apilado.
+		var kick := 0.55 * float(i)
+		p.linear_velocity = obj.linear_velocity + Vector3(randf_range(-kick, kick), 0.0, randf_range(-kick, kick))
+		p.angular_velocity = obj.angular_velocity
+	obj.queue_free()
+
+func _make_piece_mat(tex: Texture2D, y_lo: float, y_hi: float) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = PIECE_SHADER
+	m.set_shader_parameter("albedo_tex", tex)
+	m.set_shader_parameter("y_min", y_lo)
+	m.set_shader_parameter("y_max", y_hi)
+	return m
+
 func _on_swallowed(xp_gained: int, _total_xp: int) -> void:
 	count += 1
-	score += xp_gained
+	combo += 1
+	_combo_left = COMBO_WINDOW
+	var mult := combo_mult()
+	var ganado := xp_gained * mult
+	score += ganado
 	_update_hud()
+	_update_combo_label()
 	_bump_score()
-	_spawn_float_label("+%d" % xp_gained, hole.global_position + Vector3.UP * 0.5)
+	_spawn_float_label("+%d" % ganado, hole.global_position + Vector3.UP * 0.5, mult > 1)
+	if score >= SCORE_GOAL:
+		_end_game(true)
+
+func combo_mult() -> int:
+	return clampi(1 + combo / COMBO_PER_STEP, 1, COMBO_MAX_MULT)
+
+func _reset_combo() -> void:
+	combo = 0
+	_combo_left = 0.0
+	_update_combo_label()
+
+func _update_combo_label() -> void:
+	var mult := combo_mult()
+	if mult <= 1:
+		# Sólo aparece cuando ya multiplica: un "x1" permanente es ruido de HUD.
+		if _combo_label.visible:
+			_combo_label.visible = false
+		return
+	var nuevo := not _combo_label.visible
+	_combo_label.visible = true
+	_combo_label.text = "x%d  COMBO" % mult
+	# Golpecito en cada bocado, más fuerte cuando sube de escalón.
+	_combo_label.scale = Vector2.ONE * (1.5 if nuevo or combo % COMBO_PER_STEP == 0 else 1.18)
+	create_tween().tween_property(_combo_label, "scale", Vector2.ONE, 0.3) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 func _on_leveled_up(new_level: int) -> void:
 	# Cartel central con pop elástico.
@@ -236,15 +478,17 @@ func _on_leveled_up(new_level: int) -> void:
 		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 	_update_hud()
 
-func _spawn_float_label(text: String, world_pos: Vector3) -> void:
-	# "+N" flotante: XP ganada, dibujada sobre el agujero y subiendo.
+func _spawn_float_label(text: String, world_pos: Vector3, big: bool = false) -> void:
+	# "+N" flotante: puntos ganados, dibujados sobre el agujero y subiendo. Con
+	# combo van más grandes y en naranja, para que se note que valen más.
 	var cam := get_viewport().get_camera_3d()
 	if cam == null or cam.is_position_behind(world_pos):
 		return
 	var lbl := Label.new()
 	lbl.text = text
-	lbl.add_theme_font_size_override("font_size", 26)
-	lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.35))
+	lbl.add_theme_font_size_override("font_size", 38 if big else 26)
+	lbl.add_theme_color_override("font_color",
+		Color(1.0, 0.62, 0.2) if big else Color(1.0, 0.9, 0.35))
 	lbl.add_theme_color_override("font_outline_color", Color.BLACK)
 	lbl.add_theme_constant_override("outline_size", 6)
 	$UI.add_child(lbl)
@@ -260,8 +504,39 @@ func _spawn_float_label(text: String, world_pos: Vector3) -> void:
 
 func _update_hud() -> void:
 	level_label.text = str(hole.level + 1)
-	_update_xp_bar()
+	_update_goal_bar()
 	_update_timer_label()
+
+func _build_combo_label() -> void:
+	_combo_label = Label.new()
+	_combo_label.add_theme_font_size_override("font_size", 30)
+	_combo_label.add_theme_color_override("font_color", Color(1.0, 0.62, 0.2))
+	_combo_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	_combo_label.add_theme_constant_override("outline_size", 8)
+	_combo_label.position = Vector2(22.0, 262.0)  # despejado del panel de puntaje
+	_combo_label.pivot_offset = Vector2(0.0, 18.0)  # crece desde su izquierda
+	_combo_label.visible = false
+	$UI.add_child(_combo_label)
+
+func _show_hint() -> void:
+	# Cartel de arranque, como el del juego de referencia: la partida ahora empieza
+	# sin pasar por el menú, así que el objetivo hay que decirlo acá o no se dice
+	# en ninguna parte.
+	var lbl := Label.new()
+	lbl.text = "Comé todo hasta llegar a %s puntos" % _format_number(SCORE_GOAL)
+	lbl.add_theme_font_size_override("font_size", 30)
+	lbl.add_theme_color_override("font_color", Color(0.6, 1.0, 0.55))
+	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	lbl.add_theme_constant_override("outline_size", 10)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var vp := get_viewport().get_visible_rect().size
+	lbl.size = Vector2(vp.x, 46.0)
+	lbl.position = Vector2(0.0, vp.y * 0.17)
+	$UI.add_child(lbl)
+	var t := create_tween()
+	t.tween_interval(HINT_SECS)
+	t.tween_property(lbl, "modulate:a", 0.0, 0.6)
+	t.tween_callback(lbl.queue_free)
 
 func _bump_score() -> void:
 	# El número no salta: sube contando, y pega un golpecito de escala.
@@ -278,20 +553,16 @@ func _set_score_display(v: float) -> void:
 	_score_shown = v
 	score_value.text = _format_number(int(round(v)))
 
-func _update_xp_bar() -> void:
-	var reqs: Array[int] = hole.level_xp_req
-	var target := 100.0
-	if hole.level + 1 < reqs.size():
-		var cur := reqs[hole.level]
-		var nxt := reqs[hole.level + 1]
-		target = clampf(float(hole.xp - cur) / float(maxi(nxt - cur, 1)) * 100.0, 0.0, 100.0)
-		xp_label.text = "%d / %d" % [hole.xp - cur, nxt - cur]
-	else:
-		xp_label.text = "MÁXIMO"
+func _update_goal_bar() -> void:
+	# La barra mide el OBJETIVO de la partida, no la XP al próximo nivel. El nivel
+	# ya tiene su propio feedback —el badge que late y el cartel central—, y lo que
+	# el jugador necesita ver todo el tiempo es cuánto le falta para ganar.
+	goal_label.text = "%s / %s" % [_format_number(score), _format_number(SCORE_GOAL)]
+	var target := clampf(float(score) / float(SCORE_GOAL) * 100.0, 0.0, 100.0)
 	if _bar_tween != null and _bar_tween.is_valid():
 		_bar_tween.kill()
 	_bar_tween = create_tween()
-	_bar_tween.tween_property(xp_bar, "value", target, 0.3).set_trans(Tween.TRANS_CUBIC)
+	_bar_tween.tween_property(goal_bar, "value", target, 0.3).set_trans(Tween.TRANS_CUBIC)
 
 func _update_timer_label() -> void:
 	var m: int = int(time_left) / 60
@@ -357,6 +628,20 @@ func _add_strip(parent: Node, cx: float, cz: float, sx: float, sz: float, y: flo
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
 
+func _build_shared_assets() -> void:
+	# Una malla y un material por VARIANTE, no por instancia. Ver el comentario de
+	# los campos: es la diferencia entre 6 y 128 draw calls sólo en peatones.
+	_ped_body_mesh = CapsuleMesh.new()
+	_ped_body_mesh.radius = 0.09
+	_ped_body_mesh.height = 0.34
+	_ped_head_mesh = SphereMesh.new()
+	_ped_head_mesh.radius = 0.07
+	_ped_head_mesh.height = 0.14
+	for c in SHIRT_COLORS:
+		_shirt_mats.append(_make_mat(c))
+	_skin_mat = _make_mat(Color(0.94, 0.76, 0.62))
+	_grass_mat = _make_ground_mat(Color(0.38, 0.62, 0.32))
+
 func _make_ground_mat(color: Color) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = GROUND_SHADER
@@ -406,8 +691,7 @@ func _is_free(x: float, z: float, r: float) -> bool:
 
 func _spawn_park(bx: float, bz: float) -> void:
 	# Césped + árboles + arbustos/rocas/flores. Comida chica y mediana.
-	var grass := _make_ground_mat(Color(0.38, 0.62, 0.32))
-	_add_strip(_city, bx, bz, BLOCK_HALF * 2.0 + 1.4, BLOCK_HALF * 2.0 + 1.4, 0.004, grass)
+	_add_strip(_city, bx, bz, BLOCK_HALF * 2.0 + 1.4, BLOCK_HALF * 2.0 + 1.4, 0.004, _grass_mat)
 	for _k in range(randi_range(4, 7)):
 		var foot := randf_range(1.0, 1.6)
 		var pos := _find_spot(bx, bz, BLOCK_HALF, foot)
@@ -430,6 +714,7 @@ func _spawn_building_block(bx: float, bz: float) -> void:
 		var model: String = SKYSCRAPERS.pick_random() if sky else BUILDINGS_LOW.pick_random()
 		var b := _spawn_model_swallowable(model, pos, foot, 0.0, XP_SKYSCRAPER if sky else XP_BUILDING)
 		b.sfx_kind = Sfx.Kind.HEAVY if sky else Sfx.Kind.DEBRIS
+		b.break_pieces = PIECES_SKYSCRAPER if sky else PIECES_BUILDING
 	for _k in range(randi_range(2, 4)):
 		var foot := randf_range(0.5, 0.9)
 		var pos := _find_spot(bx, bz, BLOCK_HALF, foot)
@@ -488,29 +773,46 @@ func _spawn_pedestrian(pos: Vector3, dir: Vector3) -> void:
 	var visual := s.get_node("Visual") as Node3D
 	(visual.get_node("MeshInstance3D") as MeshInstance3D).visible = false
 	var body := MeshInstance3D.new()
-	var cap := CapsuleMesh.new()
-	cap.radius = 0.09
-	cap.height = 0.34
-	body.mesh = cap
-	body.material_override = _make_mat(SHIRT_COLORS.pick_random())
+	body.mesh = _ped_body_mesh
+	body.material_override = _shirt_mats.pick_random()
 	body.position.y = 0.20
 	visual.add_child(body)
 	var head := MeshInstance3D.new()
-	var sph := SphereMesh.new()
-	sph.radius = 0.07
-	sph.height = 0.14
-	head.mesh = sph
-	head.material_override = _make_mat(Color(0.94, 0.76, 0.62))
+	head.mesh = _ped_head_mesh
+	head.material_override = _skin_mat
 	head.position.y = 0.44
 	visual.add_child(head)
 	s.swallow_size = 0.35
 	s.xp_value = XP_PEDESTRIAN
 	s.sfx_kind = Sfx.Kind.VOICE
 	s.consumed.connect(_on_object_consumed)
+	s.fell_in.connect(_on_object_fell_in)
 	s.position = pos
 	swallowables.add_child(s)
 	s.setup_body(Vector3(0.25, 0.55, 0.25))
 	s.start_walking(dir, MAP_HALF, hole)
+
+func _spawn_rivals() -> void:
+	# Arrancan lejos del jugador: verse comer al vecino en el segundo uno, sin
+	# haber entendido todavía que hay vecinos, es confuso y no enseña nada.
+	for i in RIVALS.size():
+		var r := RivalRef.new()
+		r.rival_name = RIVALS[i]["nombre"]
+		r.color = RIVALS[i]["color"]
+		var pos := Vector3.ZERO
+		for _try in 30:
+			pos = Vector3(randf_range(-MAP_HALF + 4.0, MAP_HALF - 4.0), 0.0,
+				randf_range(-MAP_HALF + 4.0, MAP_HALF - 4.0))
+			if Vector2(pos.x, pos.z).length() > RIVAL_START_CLEAR:
+				break
+		add_child(r)
+		r.global_position = pos
+		# Las tablas de progresión salen del agujero del jugador: son balance del
+		# juego y no tienen por qué existir duplicadas en dos archivos.
+		r.setup(swallowables, hole.level_radii, hole.level_xp_req, MAP_HALF)
+		rivals.append(r)
+	rival_arrows.setup(hole.camera, hole, rivals)
+	leaderboard.setup(hole, rivals, func(): return score)
 
 func _spawn_model_swallowable(model_path: String, pos: Vector3, target_footprint: float, rot_y: float = 0.0, xp: int = 1) -> SwallowableRef:
 	# Crea un swallowable con un modelo .glb. El swallow_size y la colisión se
@@ -519,9 +821,12 @@ func _spawn_model_swallowable(model_path: String, pos: Vector3, target_footprint
 	var s := swallowable_scene.instantiate() as SwallowableRef
 	s.xp_value = xp
 	s.consumed.connect(_on_object_consumed)
+	s.fell_in.connect(_on_object_fell_in)
+	s.wants_break.connect(_on_wants_break)  # sólo dispara si le ponen break_pieces > 1
 	var visual := s.get_node("Visual") as Node3D
 	(visual.get_node("MeshInstance3D") as MeshInstance3D).visible = false
 	var model: Node3D = (load(model_path) as PackedScene).instantiate()
+	model.name = "Model"  # nombre estable: el derrumbe lo busca por acá, y el hijo 0 es el cubo placeholder
 	visual.add_child(model)
 	s.position = pos  # los modelos Kenney tienen el origen en la base
 	swallowables.add_child(s)  # ya en el árbol para poder medir su AABB

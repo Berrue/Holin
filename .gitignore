@@ -13,3 +13,9 @@ holin/_*.png.import
 Thumbs.db
 .DS_Store
 desktop.ini
+
+# APK exportado
+build/
+
+# Cache de Python de tools/
+tools/__pycache__/

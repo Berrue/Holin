@@ -66,6 +66,78 @@ Holin/                         <- raíz del repo
     y se usa `get_tree().paused = true`. Importante: **despausar antes** de
     `reload_current_scene()` / `change_scene_to_file()` (el `paused` vive en el árbol).
 
+## Herramientas de dev (`holin/devtools/`)
+
+Dos scripts para mirar y medir el juego sin jugarlo a mano. No son parte del
+juego: no los carga ninguna escena, se corren desde la consola.
+
+| Script | Para qué |
+|---|---|
+| `stress.gd` | Juega una partida entera sola e informa. Correlo después de cualquier cambio de física o de spawn. |
+| `shots.gd` | Saca PNGs en el frame exacto en que pasa algo (un derrumbe, un impacto). Para comparar antes/después de un cambio visual. |
+| `profile.gd` | Mide rendimiento durante una partida entera: draw calls, triángulos, tiempos de CPU, e inventario de mallas y materiales. |
+| `autoplay.gd` | El bot que usan los tres. Va por lo más valioso que le entre por tamaño. |
+
+```bash
+godot --headless --path holin --script res://devtools/stress.gd
+```
+
+```bash
+godot --path holin --script res://devtools/shots.gd
+```
+
+```bash
+godot --path holin --script res://devtools/profile.gd
+```
+
+`shots.gd` y `profile.gd` van **sin** `--headless` (necesitan renderizar). El
+primero deja los PNG en
+`user://holin_shots` e imprime la ruta absoluta al arrancar. Se configura con
+las constantes de arriba del archivo (qué evento espera, en qué nivel arranca,
+cuántos frames después dispara cada foto, el prefijo de los archivos).
+
+Del informe de `stress.gd` hay dos números que importan:
+
+- **`objetos` tiene que bajar** con el tiempo. Si sube, algo se está acumulando.
+- **`time_scale` tiene que terminar en 1.00.** Si no, quedó trabado un hitstop —
+  y como vive en `Engine` y no en el árbol, ni recargar la escena lo arregla.
+
+> ⚠ Trampa que ya costó una vez: `main._ready()` recién corre en el **primer
+> frame**, no durante el `_initialize()` de un `SceneTree`. Cualquier setup que
+> toque el agujero va después, o main lo pisa. Está comentado en `autoplay.gd`.
+
+## Exportar a Android
+
+```bash
+godot --headless --path holin --export-debug "Android" "../build/holin.apk"
+```
+
+El APK sale en `build/` (ignorado por git). El preset está en
+`holin/export_presets.cfg`; las rutas del SDK, el JDK y el keystore de debug
+salen de la configuración del editor de Godot, no del repo.
+
+> ⚠ **Trampa cara:** si falta `textures/vram_compression/import_etc2_astc=true`
+> en `project.godot`, la exportación falla con un `Cannot export project ... due
+> to configuration errors` que **no dice cuál es el error**. Android exige
+> ETC2/ASTC. Ya está puesto, pero si alguna vez reaparece ese mensaje, empezá
+> por ahí.
+
+Instalar en un teléfono con depuración USB activada (`adb` no está en el PATH,
+vive en `%LOCALAPPDATA%\Android\Sdk\platform-tools`):
+
+```bash
+"$LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe" install -r build/holin.apk
+```
+
+El APK de debug arranca con el **overlay de métricas** encendido
+(`scripts/perf_overlay.gd`, abajo a la izquierda): fps, ms de CPU, draw calls y
+triángulos. En release se apaga solo. En escritorio se alterna con **F3**.
+
+Cómo leerlo: a 60 fps el presupuesto es 16,6 ms por frame. Si la CPU sola ya se
+come la mitad, el cuello es CPU; si la CPU está baja y los fps igual caen, el
+cuello es GPU — y ahí el sospechoso número uno es el `discard` de
+`ground_hole.gdshader`, que corre sobre casi toda la pantalla.
+
 ## Próximos pasos (roadmap)
 
 - **Fase 2 (siguiente):** monetización (AdMob: intersticial + rewarded) + retención

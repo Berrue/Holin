@@ -18,8 +18,24 @@ const Sfx = preload("res://scripts/sfx.gd")
 @export var swallow_size: float = 1.0
 @export var xp_value: int = 1
 @export var sfx_kind: int = Sfx.Kind.NONE  # qué se escucha cuando cae
+## En cuántos pedazos se parte al derrumbarse. 1 = cae entero.
+@export var break_pieces: int = 1
+## Cuánto pesa este objeto para el golpe (shake/hitstop). Los pedazos de un
+## edificio traen una fracción: si no, un derrumbe de tres partes sacudiría tres
+## veces con la fuerza del edificio completo.
+@export var impact_weight: float = 1.0
+
+## Tamaño real en el mundo, medido al armar el cuerpo. Lo necesita quien lo parta.
+var world_size := Vector3.ONE
 
 signal consumed(xp: int)
+## Cruzó la boca del pozo: el instante del golpe (shake + hitstop). Va aparte de
+## `consumed`, que llega recién al fondo, medio segundo tarde para el feedback.
+signal fell_in(size: float, at: Vector3, weight: float)
+## Pide que lo reemplacen por pedazos. Lo atiende main.gd, que es la fábrica de
+## swallowables: desde acá no hay con qué conectarle las señales a las piezas ni
+## cómo repartirles la XP.
+signal wants_break(obj)
 
 enum Mode { STATIC, CAR, PEDESTRIAN }
 
@@ -33,12 +49,15 @@ const FALL_TRIGGER := 0.8       # un móvil se suelta cuando el pozo lo tapa tan
 const CAR_BRAKE_DIST := 6.0     # distancia a la que un auto frena por el agujero
 const CAR_FOLLOW_DIST := 2.6    # distancia mínima con el auto de adelante
 const PED_FLEE_SPEED := 2.6
+const BREAK_TILT := 0.88        # coseno del vuelco que parte al edificio (~28°)
+const BREAK_DEPTH := -0.35      # o cuando la base ya bajó del nivel de la calle
 
 var _mode := Mode.STATIC
 var _hole = null                # el agujero; sin tipar para no ciclar con Hole
 var _dynamic := false           # ya se soltó: la física tiene el control
 var _eaten := false
-var _cried := false             # el sonido de caída ya se disparó
+var _crossed := false           # ya cruzó la boca: sonido y golpe ya disparados
+var _broke := false             # ya pidió romperse: que no lo pida dos veces
 var _visual: Node3D
 var _base_visual_scale := Vector3.ONE
 # Auto.
@@ -62,11 +81,12 @@ func _ready() -> void:
 	freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
 	set_physics_process(false)
 
-func setup_body(world_size: Vector3) -> void:
+func setup_body(size: Vector3) -> void:
 	# Caja de colisión del tamaño real del modelo, apoyada en el piso.
+	world_size = size
 	var col := $CollisionShape3D as CollisionShape3D
 	var box: BoxShape3D = (col.shape as BoxShape3D).duplicate()  # no tocar la compartida
-	box.size = Vector3(maxf(world_size.x, 0.2), maxf(world_size.y, 0.2), maxf(world_size.z, 0.2))
+	box.size = Vector3(maxf(size.x, 0.2), maxf(size.y, 0.2), maxf(size.z, 0.2))
 	col.shape = box
 	col.position.y = box.size.y * 0.5
 	# Masa según el porte: un rascacielos no lo mueve un arbusto.
@@ -116,6 +136,38 @@ func hole_nearby(hole, dist: float) -> void:
 		# flotando sobre el vacío hasta que algo lo toque.
 		sleeping = false
 
+func suck_by_rival(center: Node3D) -> bool:
+	# Succión "de mentira", para los rivales. Ellos no abren un pozo real —ver el
+	# encabezado de rival_hole.gd—, así que la física no tiene de dónde agarrarse
+	# y la caída va por tween: baja, se encoge y desaparece. Es el método que este
+	# proyecto usaba para todo antes de que el agujero del jugador se llevara el
+	# suelo consigo.
+	#
+	# Devuelve si efectivamente se lo comió, para que el rival no se acredite XP
+	# de algo que ya se estaba tragando otro.
+	if _eaten:
+		return false
+	_eaten = true
+	set_physics_process(false)
+	freeze = true
+	collision_layer = 0
+	collision_mask = 0
+	remove_from_group("swallowable")
+	var dest := Vector3(center.global_position.x, global_position.y - 2.5, center.global_position.z)
+	var t := create_tween().set_parallel(true)
+	t.tween_property(self, "global_position", dest, 0.35).set_ease(Tween.EASE_IN)
+	t.tween_property(_visual, "scale", Vector3.ZERO, 0.35)
+	t.tween_property(self, "rotation:y", rotation.y + randf_range(-2.0, 2.0), 0.35)
+	t.chain().tween_callback(queue_free)
+	return true
+
+func release_into(hole) -> void:
+	# Suelta el cuerpo ya, sin esperar a que el agujero lo detecte por área. Lo
+	# usan los pedazos de un edificio: nacen con el piso ya abierto abajo, y el
+	# frame que tardarían en ser detectados los deja colgados en el aire.
+	_hole = hole
+	_go_dynamic()
+
 func _go_dynamic() -> void:
 	if _dynamic:
 		return
@@ -148,13 +200,25 @@ func _physics_process(delta: float) -> void:
 
 func _fall_step() -> void:
 	var y := global_position.y
+	# Se parte recién cuando ya está comprometido: volcado más de ~28° o con la
+	# base bajo el nivel de la calle. NO al soltarse, que es lo intuitivo pero
+	# está mal: el agujero suelta todo lo que tenga a 15 m (WAKE_FACTOR), así que
+	# romperlo ahí lo haría estallar parado en medio de la manzana, a media
+	# cuadra del pozo. Primero se vuelca entero como torre, después se quiebra.
+	if break_pieces > 1 and not _broke:
+		if global_transform.basis.y.y < BREAK_TILT or y < BREAK_DEPTH:
+			_broke = true
+			emit_signal("wants_break", self)
+		return
 	if y > -0.1:
 		return  # todavía sobre el nivel de la calle: física pura, sin ayudas
-	# Suena al cruzar la boca, no al soltarse: un edificio puede quedar
+	# Suena y golpea al cruzar la boca, no al soltarse: un edificio puede quedar
 	# tambaleando en el borde un buen rato antes de terminar de caer.
-	if not _cried and sfx_kind != Sfx.Kind.NONE and y < SFX_TRIGGER_Y:
-		_cried = true
-		Sfx.play(sfx_kind, get_parent(), global_position)
+	if not _crossed and y < SFX_TRIGGER_Y:
+		_crossed = true
+		if sfx_kind != Sfx.Kind.NONE:
+			Sfx.play(sfx_kind, get_parent(), global_position)
+		emit_signal("fell_in", swallow_size, global_position, impact_weight)
 	# Succión: ya adentro, tira hacia el eje para que no se quede raspando pared.
 	if _hole != null and is_instance_valid(_hole):
 		var pull: Vector3 = _hole.global_position - global_position

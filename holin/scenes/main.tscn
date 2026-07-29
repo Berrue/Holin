@@ -1,9 +1,13 @@
-[gd_scene load_steps=13 format=3 uid="uid://b0main0fase001"]
+[gd_scene load_steps=17 format=3 uid="uid://b0main0fase001"]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/hole.tscn" id="2_hole"]
 [ext_resource type="PackedScene" path="res://scenes/swallowable.tscn" id="3_swl"]
 [ext_resource type="AudioStream" path="res://assets/audio/theme.wav" id="4_theme"]
+[ext_resource type="Script" path="res://scripts/virtual_joystick.gd" id="5_joy"]
+[ext_resource type="Script" path="res://scripts/rival_arrows.gd" id="6_arrows"]
+[ext_resource type="Script" path="res://scripts/leaderboard.gd" id="7_board"]
+[ext_resource type="Script" path="res://scripts/perf_overlay.gd" id="8_perf"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
 bg_color = Color(0.13, 0.14, 0.18, 0.96)
@@ -111,7 +115,7 @@ volume_db = -13.0
 offset_left = 16.0
 offset_top = 14.0
 offset_right = 276.0
-offset_bottom = 116.0
+offset_bottom = 244.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_hud")
 
 [node name="VBox" type="VBoxContainer" parent="UI/ScorePanel"]
@@ -139,21 +143,21 @@ theme_override_constants/separation = 0
 [node name="ScoreCaption" type="Label" parent="UI/ScorePanel/VBox/Row/ScoreCol"]
 theme_override_colors/font_color = Color(0.68, 0.72, 0.8, 1)
 theme_override_font_sizes/font_size = 13
-text = "PUNTOS"
+text = "PUNTUACIÓN"
 
 [node name="ScoreValue" type="Label" parent="UI/ScorePanel/VBox/Row/ScoreCol"]
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 36
 text = "0"
 
-[node name="XPBar" type="ProgressBar" parent="UI/ScorePanel/VBox"]
+[node name="GoalBar" type="ProgressBar" parent="UI/ScorePanel/VBox"]
 custom_minimum_size = Vector2(0, 14)
 theme_override_styles/background = SubResource("StyleBoxFlat_barbg")
 theme_override_styles/fill = SubResource("StyleBoxFlat_barfill")
 value = 0.0
 show_percentage = false
 
-[node name="XPLabel" type="Label" parent="UI/ScorePanel/VBox/XPBar"]
+[node name="GoalLabel" type="Label" parent="UI/ScorePanel/VBox/GoalBar"]
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
@@ -165,6 +169,9 @@ theme_override_font_sizes/font_size = 11
 text = "0 / 25"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="Leaderboard" type="VBoxContainer" parent="UI/ScorePanel/VBox"]
+script = ExtResource("7_board")
 
 [node name="TimerPanel" type="PanelContainer" parent="UI"]
 anchor_left = 0.5
@@ -181,6 +188,33 @@ theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 44
 text = "2:00"
 horizontal_alignment = 1
+
+[node name="PerfOverlay" type="Label" parent="UI"]
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 18.0
+offset_top = -110.0
+offset_right = 320.0
+offset_bottom = -14.0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("8_perf")
+
+[node name="RivalArrows" type="Control" parent="UI"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("6_arrows")
+
+[node name="Joystick" type="Control" parent="UI"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("5_joy")
 
 [node name="GameOver" type="Control" parent="UI"]
 anchor_right = 1.0
