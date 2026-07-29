@@ -1,46 +1,46 @@
-extends Area3D
+extends RigidBody3D
 
-## Objeto que el agujero puede tragar. Raíz Area3D para que el agujero
-## lo detecte por solapamiento, sin física pesada. Tres modos de vida:
-## estático (edificios, árboles), auto (maneja por su calle) y peatón
-## (camina por la vereda y huye del agujero).
+## Objeto que el agujero puede tragar. Es un rígido de verdad, no una animación:
+## mientras la ciudad está intacta vive congelado (el motor lo trata como cuerpo
+## estático y no cuesta casi nada) y recién se suelta cuando el agujero se le
+## acerca. Desde ahí manda la física: se apoya en el anillo de suelo que rodea
+## la boca, se vuelca solo al perder apoyo, choca contra los demás objetos y
+## contra las paredes del pozo. Por eso las cosas grandes se traban en el borde
+## y bajan a los tumbos en vez de entrar de una: nadie teletransporta nada.
 ##
-## Ragdoll en dos fases, siguiendo al agujero EN VIVO:
-##  - Borde (y > ESCAPE_DEPTH): pierde el piso, se inclina hacia el pozo y cae.
-##    Si el agujero se corre, puede recuperarse (tilt chico) o volcarse contra
-##    la ciudad y quedar tirado sin ser comido (tilt grande).
-##  - Pozo (y <= ESCAPE_DEPTH): comprometido; cae rebotando contra las paredes
-##    y recién al fondo se consume (ahí se otorga la XP).
+## Tres modos de vida antes de la caída: estático (edificios, árboles, props),
+## auto (recorre su calle frenando ante el agujero y ante el auto de adelante) y
+## peatón (camina por la vereda y huye del agujero). Los dos móviles andan como
+## cuerpos congelados-cinemáticos y sólo se sueltan al quedar sobre la boca.
+
+const Sfx = preload("res://scripts/sfx.gd")
 
 @export var swallow_size: float = 1.0
 @export var xp_value: int = 1
+@export var sfx_kind: int = Sfx.Kind.NONE  # qué se escucha cuando cae
 
 signal consumed(xp: int)
 
-const GRAVITY := 25.0
-const PULL_STRENGTH := 6.0     # deslizamiento horizontal hacia el centro del pozo
-const KILL_DEPTH := 3.0        # profundidad a la que se consume
-const ESCAPE_DEPTH := -0.6     # más profundo que esto ya no se escapa
-const TOPPLE_ACCEL := 3.5      # aceleración angular del vuelco (rad/s²)
-const RECOVER_TILT := 0.55     # tilt (rad) bajo el cual se endereza si el pozo se va
-const CAR_BRAKE_DIST := 6.0    # distancia a la que un auto frena por el agujero
-const CAR_FOLLOW_DIST := 2.6   # distancia mínima con el auto de adelante
-const PED_FLEE_SPEED := 2.6
-
 enum Mode { STATIC, CAR, PEDESTRIAN }
 
+const KILL_DEPTH := 6.5         # profundidad a la que se consume y se otorga la XP
+const NO_COLLIDE_DEPTH := -4.0  # más abajo deja de chocar: nada se traba en el fondo
+const SFX_TRIGGER_Y := -0.15    # y a la que suena: recién cuando cruza el borde
+const SHRINK_START := -1.0      # y desde la que empieza a achicarse (succión)
+const SHRINK_END := -5.2
+const FUNNEL_ACCEL := 16.0      # succión hacia el eje del pozo, en m/s²
+const FALL_TRIGGER := 0.8       # un móvil se suelta cuando el pozo lo tapa tanto
+const CAR_BRAKE_DIST := 6.0     # distancia a la que un auto frena por el agujero
+const CAR_FOLLOW_DIST := 2.6    # distancia mínima con el auto de adelante
+const PED_FLEE_SPEED := 2.6
+
 var _mode := Mode.STATIC
-var _ragdoll := false
-var _hole: Node3D = null       # referencia al agujero, para reaccionar a él
-var _lin_vel: Vector3
-var _ang_vel: Vector3
-var _base_scale: Vector3
-# Vuelco (fase borde).
-var _tip_axis := Vector3.RIGHT
-var _tilt := 0.0
-var _tilt_vel := 0.0
-var _pre_rotation: Vector3
-var _pre_y := 0.0
+var _hole = null                # el agujero; sin tipar para no ciclar con Hole
+var _dynamic := false           # ya se soltó: la física tiene el control
+var _eaten := false
+var _cried := false             # el sonido de caída ya se disparó
+var _visual: Node3D
+var _base_visual_scale := Vector3.ONE
 # Auto.
 var _drive_dir := Vector3.ZERO
 var _drive_speed := 0.0
@@ -49,59 +49,96 @@ var _map_half := 36.0
 # Peatón.
 var _walk_dir := Vector3.ZERO
 var _walk_speed := 0.8
+var _cur_walk_speed := 0.0
 var _walk_timer := 0.0
 var _bob_t := 0.0
 var _base_y := 0.0
 
 func _ready() -> void:
 	add_to_group("swallowable")
+	_visual = $Visual
+	_base_visual_scale = _visual.scale
+	freeze = true
+	freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
 	set_physics_process(false)
 
-func start_driving(dir: Vector3, speed: float, map_half: float, hole: Node3D) -> void:
+func setup_body(world_size: Vector3) -> void:
+	# Caja de colisión del tamaño real del modelo, apoyada en el piso.
+	var col := $CollisionShape3D as CollisionShape3D
+	var box: BoxShape3D = (col.shape as BoxShape3D).duplicate()  # no tocar la compartida
+	box.size = Vector3(maxf(world_size.x, 0.2), maxf(world_size.y, 0.2), maxf(world_size.z, 0.2))
+	col.shape = box
+	col.position.y = box.size.y * 0.5
+	# Masa según el porte: un rascacielos no lo mueve un arbusto.
+	mass = clampf(pow(swallow_size, 2.2) * 3.0, 0.4, 140.0)
+	# Centro de masa un poco abajo del geométrico: las torres no se caen solas
+	# por cualquier roce, pero igual se vuelcan cuando pierden medio apoyo.
+	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
+	center_of_mass = Vector3(0.0, box.size.y * 0.4, 0.0)
+
+func start_driving(dir: Vector3, speed: float, map_half: float, hole) -> void:
 	_mode = Mode.CAR
 	_drive_dir = dir
 	_drive_speed = speed
 	_cur_speed = speed
 	_map_half = map_half
 	_hole = hole
+	freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	add_to_group("car")
 	set_physics_process(true)
 
-func start_walking(dir: Vector3, map_half: float, hole: Node3D) -> void:
+func start_walking(dir: Vector3, map_half: float, hole) -> void:
 	_mode = Mode.PEDESTRIAN
 	_walk_dir = dir
+	_cur_walk_speed = _walk_speed
 	_map_half = map_half
 	_hole = hole
 	_walk_timer = randf_range(2.0, 5.0)
 	_base_y = position.y
+	freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	add_to_group("pedestrian")
 	set_physics_process(true)
 
-func be_swallowed(hole: Node3D) -> void:
-	# Perdió el piso: arranca el ragdoll. Conserva la inercia que traía y
-	# se inclina HACIA el pozo (no al azar), como una torre que se cae.
+# ----------------------------------------------------------------------------
+# Aviso del agujero
+# ----------------------------------------------------------------------------
+
+func hole_nearby(hole, dist: float) -> void:
+	# El agujero avisa que está cerca y que este objeto entra por tamaño.
 	_hole = hole
-	_ragdoll = true
-	_base_scale = scale
-	_pre_rotation = rotation
-	_pre_y = position.y
-	_tilt = 0.0
-	_tilt_vel = randf_range(0.4, 1.2)
-	var dir := hole.global_position - global_position
-	dir.y = 0.0
-	dir = dir.normalized() if dir.length() > 0.01 else Vector3.FORWARD
-	_tip_axis = Vector3.UP.cross(dir).normalized()
-	_lin_vel = _drive_dir * _cur_speed + _walk_dir * _walk_speed \
-		+ Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0))
-	_ang_vel = _tip_axis * randf_range(2.0, 4.0) + Vector3(
-		randf_range(-2.0, 2.0),
-		randf_range(-2.0, 2.0),
-		randf_range(-2.0, 2.0))
+	if not _dynamic:
+		# Lo estático se suelta ya, para poder apoyarse y volcarse como
+		# corresponde; lo móvil sigue su ruta hasta quedar sobre la boca.
+		if _mode == Mode.STATIC or dist < hole.radius * FALL_TRIGGER:
+			_go_dynamic()
+	elif sleeping and dist < hole.radius * 2.0:
+		# El piso se le va a mover por abajo: no lo dejamos dormido o quedaría
+		# flotando sobre el vacío hasta que algo lo toque.
+		sleeping = false
+
+func _go_dynamic() -> void:
+	if _dynamic:
+		return
+	_dynamic = true
+	var vel := _drive_dir * _cur_speed + _walk_dir * _cur_walk_speed
+	_mode = Mode.STATIC  # deja de conducir/caminar: manda la física
+	if is_in_group("car"):
+		remove_from_group("car")
+	if is_in_group("pedestrian"):
+		remove_from_group("pedestrian")
+	freeze = false
+	continuous_cd = true  # el piso y las paredes son mallas finas: nada de tunelear
+	linear_velocity = vel  # conserva la inercia que traía
+	angular_velocity = Vector3(randf_range(-0.5, 0.5), randf_range(-0.5, 0.5), randf_range(-0.5, 0.5))
 	set_physics_process(true)
 
+# ----------------------------------------------------------------------------
+# Caída
+# ----------------------------------------------------------------------------
+
 func _physics_process(delta: float) -> void:
-	if _ragdoll:
-		_ragdoll_step(delta)
+	if _dynamic:
+		_fall_step()
 		return
 	match _mode:
 		Mode.CAR:
@@ -109,94 +146,31 @@ func _physics_process(delta: float) -> void:
 		Mode.PEDESTRIAN:
 			_ped_step(delta)
 
-# ----------------------------------------------------------------------------
-# Ragdoll
-# ----------------------------------------------------------------------------
-
-func _ragdoll_step(delta: float) -> void:
-	if global_position.y > ESCAPE_DEPTH:
-		_edge_step(delta)
-	else:
-		_shaft_step(delta)
-
-func _edge_step(delta: float) -> void:
-	# Fase borde: el pozo se sigue moviendo; todavía hay chance de escapar.
-	var hole_pos: Vector3 = _hole.global_position
-	var hole_r: float = _hole.get("radius")
-	var off := global_position - hole_pos
-	off.y = 0.0
-	if off.length() < hole_r * 0.95:
-		# Sin piso debajo: cae, se inclina hacia el pozo y desliza al centro.
-		_lin_vel.y -= GRAVITY * delta
-		if off.length() > 0.01:
-			_lin_vel += -off.normalized() * PULL_STRENGTH * delta
-		_tilt_vel += TOPPLE_ACCEL * delta
-		var dt := _tilt_vel * delta
-		global_rotate(_tip_axis, dt)
-		_tilt += dt
-		global_position += _lin_vel * delta
-	elif _tilt < RECOVER_TILT:
-		_recover_upright()
-	else:
-		_fall_flat()
-
-func _shaft_step(delta: float) -> void:
-	# Fase pozo: comprometido. Cae rebotando contra la pared del cilindro.
-	var hole_pos: Vector3 = _hole.global_position
-	var hole_r: float = _hole.get("radius")
-	_lin_vel.y -= GRAVITY * delta
-	var pull := hole_pos - global_position
-	pull.y = 0.0
-	_lin_vel += pull * PULL_STRENGTH * delta
-	global_position += _lin_vel * delta
-	var off := global_position - hole_pos
-	off.y = 0.0
-	var max_r := hole_r * 0.85
-	if off.length() > max_r:
-		var n := off.normalized()
-		global_position.x = hole_pos.x + n.x * max_r
-		global_position.z = hole_pos.z + n.z * max_r
-		var bounced := Vector3(_lin_vel.x, 0.0, _lin_vel.z).bounce(n) * 0.45
-		_lin_vel.x = bounced.x
-		_lin_vel.z = bounced.z
-		_ang_vel = _ang_vel.rotated(Vector3.UP, randf_range(-0.6, 0.6)) * 0.9
-	rotation += _ang_vel * delta
-	# Deformación de succión: se afina y se estira hacia abajo al hundirse.
-	var d := clampf(-global_position.y / KILL_DEPTH, 0.0, 1.0)
-	var pinch := 1.0 - 0.7 * d
-	var stretch := 1.0 + 1.2 * d
-	var vanish := maxf(1.0 - smoothstep(0.55, 1.0, d), 0.01)
-	scale = _base_scale * Vector3(pinch * vanish, stretch * vanish, pinch * vanish)
-	if d >= 1.0:
+func _fall_step() -> void:
+	var y := global_position.y
+	if y > -0.1:
+		return  # todavía sobre el nivel de la calle: física pura, sin ayudas
+	# Suena al cruzar la boca, no al soltarse: un edificio puede quedar
+	# tambaleando en el borde un buen rato antes de terminar de caer.
+	if not _cried and sfx_kind != Sfx.Kind.NONE and y < SFX_TRIGGER_Y:
+		_cried = true
+		Sfx.play(sfx_kind, get_parent(), global_position)
+	# Succión: ya adentro, tira hacia el eje para que no se quede raspando pared.
+	if _hole != null and is_instance_valid(_hole):
+		var pull: Vector3 = _hole.global_position - global_position
+		pull.y = 0.0
+		if pull.length() > 0.05:
+			apply_central_force(pull.normalized() * FUNNEL_ACCEL * mass)
+	# Se achica al hundirse: desaparece antes de llegar al fondo del pozo.
+	var t := clampf(inverse_lerp(SHRINK_START, SHRINK_END, y), 0.0, 1.0)
+	_visual.scale = _base_visual_scale * maxf(1.0 - t, 0.01)
+	if y < NO_COLLIDE_DEPTH and collision_layer != 0:
+		collision_layer = 0
+		collision_mask = 0
+	if y < -KILL_DEPTH and not _eaten:
+		_eaten = true
 		emit_signal("consumed", xp_value)
 		queue_free()
-
-func _recover_upright() -> void:
-	# Zafó con poco tilt: tambalea y vuelve a pararse. Sigue comible después.
-	_ragdoll = false
-	remove_meta("being_swallowed")
-	_lin_vel = Vector3.ZERO
-	scale = _base_scale
-	var t := create_tween().set_parallel(true)
-	t.tween_property(self, "rotation", _pre_rotation, 0.3) \
-		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	t.tween_property(self, "position:y", _pre_y, 0.3)
-	if _mode == Mode.STATIC:
-		set_physics_process(false)
-
-func _fall_flat() -> void:
-	# Se volcó fuera del pozo: queda tirado contra la ciudad SIN ser comido.
-	# No otorga XP; se lo puede tragar más tarde como cualquier objeto.
-	_ragdoll = false
-	remove_meta("being_swallowed")
-	_mode = Mode.STATIC  # un auto volcado no maneja más; un peatón queda KO
-	_lin_vel = Vector3.ZERO
-	scale = _base_scale
-	set_physics_process(false)
-	var target := (Basis(_tip_axis, PI * 0.5) * Basis.from_euler(_pre_rotation)).get_euler()
-	var t := create_tween().set_parallel(true)
-	t.tween_property(self, "rotation", target, 0.35).set_ease(Tween.EASE_IN)
-	t.tween_property(self, "position:y", 0.0, 0.35).set_ease(Tween.EASE_IN)
 
 # ----------------------------------------------------------------------------
 # Auto: maneja recto por su carril, frena ante el agujero y ante otro auto.
@@ -206,21 +180,22 @@ func _car_step(delta: float) -> void:
 	var target := _drive_speed
 	# Frenar si el agujero está cerca y adelante.
 	if _hole != null:
-		var to_hole := _hole.global_position - global_position
+		var to_hole: Vector3 = _hole.global_position - global_position
 		to_hole.y = 0.0
 		if to_hole.length() < CAR_BRAKE_DIST and _drive_dir.dot(to_hole.normalized()) > 0.5:
 			target = 0.0
 	# Frenar detrás del auto de adelante en el mismo carril (no atravesarse).
 	for other in get_tree().get_nodes_in_group("car"):
-		if other == self or not is_instance_valid(other):
+		var car = other  # sin tipar: es otro Swallowable, pero es esta misma clase
+		if car == self:
 			continue
-		if other._ragdoll or other._drive_dir.dot(_drive_dir) < 0.9:
+		if car._dynamic or car._drive_dir.dot(_drive_dir) < 0.9:
 			continue
-		var rel: Vector3 = other.global_position - global_position
+		var rel: Vector3 = car.global_position - global_position
 		var ahead := rel.dot(_drive_dir)
 		var lateral := (rel - _drive_dir * ahead).length()
 		if ahead > 0.0 and ahead < CAR_FOLLOW_DIST and lateral < 0.8:
-			target = minf(target, maxf(other._cur_speed - 0.5, 0.0))
+			target = minf(target, maxf(car._cur_speed - 0.5, 0.0))
 	_cur_speed = move_toward(_cur_speed, target, 12.0 * delta)
 	global_position += _drive_dir * _cur_speed * delta
 	_wrap()
@@ -235,9 +210,9 @@ func _ped_step(delta: float) -> void:
 	var speed := _walk_speed
 	var fleeing := false
 	if _hole != null:
-		var away := global_position - _hole.global_position
+		var away: Vector3 = global_position - _hole.global_position
 		away.y = 0.0
-		var panic_r: float = _hole.get("radius") * 4.0 + 2.0
+		var panic_r: float = _hole.radius * 4.0 + 2.0
 		if away.length() < panic_r and away != Vector3.ZERO:
 			dir = away.normalized()
 			speed = PED_FLEE_SPEED
@@ -248,6 +223,7 @@ func _ped_step(delta: float) -> void:
 			_walk_timer = randf_range(2.0, 5.0)
 			_walk_dir = _random_turn(_walk_dir)
 			dir = _walk_dir
+	_cur_walk_speed = speed
 	global_position += dir * speed * delta
 	if dir != Vector3.ZERO:
 		rotation.y = atan2(dir.x, dir.z)
@@ -272,14 +248,14 @@ func _wrap() -> void:
 		global_position.z = -signf(global_position.z) * _map_half
 
 func wobble() -> void:
-	# Pequeño feedback de "todavía no entrás". Solo para objetos estáticos:
-	# autos y peatones se mueven solos y el tween pelearía con su posición.
-	if _mode != Mode.STATIC or has_meta("wobbling"):
+	# "Todavía no entrás": el objeto se sacude contra el borde. Es sólo visual;
+	# el cuerpo sigue congelado, si no media ciudad saldría empujada de lugar.
+	if _dynamic or has_meta("wobbling"):
 		return
 	set_meta("wobbling", true)
-	var base := position
+	var base := _visual.rotation
 	var t := create_tween()
-	t.tween_property(self, "position", base + Vector3(0.05, 0, 0), 0.04)
-	t.tween_property(self, "position", base - Vector3(0.05, 0, 0), 0.04)
-	t.tween_property(self, "position", base, 0.04)
+	t.tween_property(_visual, "rotation", base + Vector3(0.05, 0.0, 0.05), 0.06)
+	t.tween_property(_visual, "rotation", base - Vector3(0.05, 0.0, 0.05), 0.06)
+	t.tween_property(_visual, "rotation", base, 0.06)
 	t.tween_callback(func(): remove_meta("wobbling"))

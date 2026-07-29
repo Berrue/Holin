@@ -1,8 +1,9 @@
-[gd_scene load_steps=8 format=3 uid="uid://b0main0fase001"]
+[gd_scene load_steps=13 format=3 uid="uid://b0main0fase001"]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/hole.tscn" id="2_hole"]
 [ext_resource type="PackedScene" path="res://scenes/swallowable.tscn" id="3_swl"]
+[ext_resource type="AudioStream" path="res://assets/audio/theme.wav" id="4_theme"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
 bg_color = Color(0.13, 0.14, 0.18, 0.96)
@@ -11,12 +12,64 @@ corner_radius_top_right = 16
 corner_radius_bottom_right = 16
 corner_radius_bottom_left = 16
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ground"]
-albedo_color = Color(0.58, 0.62, 0.55, 1)
-roughness = 1.0
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hud"]
+content_margin_left = 16.0
+content_margin_top = 12.0
+content_margin_right = 22.0
+content_margin_bottom = 14.0
+bg_color = Color(0.07, 0.08, 0.12, 0.74)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 1, 1, 0.1)
+corner_radius_top_left = 22
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 22
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_badge"]
+bg_color = Color(0.98, 0.62, 0.22, 1)
+corner_radius_top_left = 26
+corner_radius_top_right = 26
+corner_radius_bottom_right = 26
+corner_radius_bottom_left = 26
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_barbg"]
+bg_color = Color(1, 1, 1, 0.13)
+corner_radius_top_left = 7
+corner_radius_top_right = 7
+corner_radius_bottom_right = 7
+corner_radius_bottom_left = 7
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_barfill"]
+bg_color = Color(1, 0.74, 0.28, 1)
+corner_radius_top_left = 7
+corner_radius_top_right = 7
+corner_radius_bottom_right = 7
+corner_radius_bottom_left = 7
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pill"]
+content_margin_left = 28.0
+content_margin_top = 4.0
+content_margin_right = 28.0
+content_margin_bottom = 8.0
+bg_color = Color(0.07, 0.08, 0.12, 0.74)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 1, 1, 0.1)
+corner_radius_top_left = 26
+corner_radius_top_right = 26
+corner_radius_bottom_right = 26
+corner_radius_bottom_left = 26
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 10
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
-material = SubResource("StandardMaterial3D_ground")
 size = Vector2(80, 80)
 
 [sub_resource type="Environment" id="Environment_main"]
@@ -31,10 +84,15 @@ script = ExtResource("1_main")
 swallowable_scene = ExtResource("3_swl")
 
 [node name="Ground" type="MeshInstance3D" parent="."]
+cast_shadow = 0
 mesh = SubResource("PlaneMesh_ground")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+light_energy = 1.15
 shadow_enabled = true
+shadow_normal_bias = 1.0
+directional_shadow_mode = 1
+directional_shadow_max_distance = 70.0
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_main")
@@ -43,33 +101,86 @@ environment = SubResource("Environment_main")
 
 [node name="Swallowables" type="Node3D" parent="."]
 
+[node name="Music" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("4_theme")
+volume_db = -13.0
+
 [node name="UI" type="CanvasLayer" parent="."]
 
-[node name="ScoreLabel" type="Label" parent="UI"]
-offset_left = 18.0
+[node name="ScorePanel" type="PanelContainer" parent="UI"]
+offset_left = 16.0
 offset_top = 14.0
-offset_right = 420.0
-offset_bottom = 52.0
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 6
-theme_override_font_sizes/font_size = 28
-text = "Puntos: 0"
+offset_right = 276.0
+offset_bottom = 116.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_hud")
 
-[node name="TimerLabel" type="Label" parent="UI"]
+[node name="VBox" type="VBoxContainer" parent="UI/ScorePanel"]
+theme_override_constants/separation = 8
+
+[node name="Row" type="HBoxContainer" parent="UI/ScorePanel/VBox"]
+theme_override_constants/separation = 12
+
+[node name="Badge" type="PanelContainer" parent="UI/ScorePanel/VBox/Row"]
+custom_minimum_size = Vector2(52, 52)
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_badge")
+
+[node name="LevelLabel" type="Label" parent="UI/ScorePanel/VBox/Row/Badge"]
+theme_override_colors/font_color = Color(0.12, 0.09, 0.05, 1)
+theme_override_font_sizes/font_size = 26
+text = "1"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ScoreCol" type="VBoxContainer" parent="UI/ScorePanel/VBox/Row"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 0
+
+[node name="ScoreCaption" type="Label" parent="UI/ScorePanel/VBox/Row/ScoreCol"]
+theme_override_colors/font_color = Color(0.68, 0.72, 0.8, 1)
+theme_override_font_sizes/font_size = 13
+text = "PUNTOS"
+
+[node name="ScoreValue" type="Label" parent="UI/ScorePanel/VBox/Row/ScoreCol"]
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 36
+text = "0"
+
+[node name="XPBar" type="ProgressBar" parent="UI/ScorePanel/VBox"]
+custom_minimum_size = Vector2(0, 14)
+theme_override_styles/background = SubResource("StyleBoxFlat_barbg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_barfill")
+value = 0.0
+show_percentage = false
+
+[node name="XPLabel" type="Label" parent="UI/ScorePanel/VBox/XPBar"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.9)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.55)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 11
+text = "0 / 25"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TimerPanel" type="PanelContainer" parent="UI"]
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -110.0
-offset_top = 12.0
-offset_right = 110.0
-offset_bottom = 80.0
+offset_left = -85.0
+offset_top = 14.0
+offset_right = 85.0
+offset_bottom = 76.0
 grow_horizontal = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_pill")
+
+[node name="TimerLabel" type="Label" parent="UI/TimerPanel"]
 theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 8
-theme_override_font_sizes/font_size = 52
-horizontal_alignment = 1
+theme_override_font_sizes/font_size = 44
 text = "2:00"
+horizontal_alignment = 1
 
 [node name="GameOver" type="Control" parent="UI"]
 anchor_right = 1.0
@@ -100,13 +211,14 @@ theme_override_constants/separation = 18
 
 [node name="Title" type="Label" parent="UI/GameOver/Center/Panel/Margin/VBox"]
 theme_override_font_sizes/font_size = 40
-horizontal_alignment = 1
 text = "¡Se acabó el tiempo!"
+horizontal_alignment = 1
 
 [node name="ScoreResult" type="Label" parent="UI/GameOver/Center/Panel/Margin/VBox"]
+theme_override_colors/font_color = Color(1, 0.82, 0.35, 1)
 theme_override_font_sizes/font_size = 30
-horizontal_alignment = 1
 text = "Puntos: 0"
+horizontal_alignment = 1
 
 [node name="ReplayButton" type="Button" parent="UI/GameOver/Center/Panel/Margin/VBox"]
 custom_minimum_size = Vector2(280, 66)

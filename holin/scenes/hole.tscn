@@ -1,33 +1,71 @@
-[gd_scene load_steps=5 format=3 uid="uid://b0hole0fase001"]
+[gd_scene load_steps=9 format=3 uid="uid://b0hole0fase001"]
 
 [ext_resource type="Script" path="res://scripts/hole.gd" id="1_hole"]
+[ext_resource type="Shader" path="res://shaders/hole_shaft.gdshader" id="2_shaft"]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dark"]
-albedo_color = Color(0.03, 0.03, 0.05, 1)
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_shaft"]
+shader = ExtResource("2_shaft")
+shader_parameter/shaft_depth = 9.0
+shader_parameter/rim_color = Color(0.4, 0.37, 0.42, 1)
+shader_parameter/wall_color = Color(0.14, 0.13, 0.18, 1)
+shader_parameter/deep_color = Color(0.01, 0.01, 0.02, 1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_shaft"]
+material = SubResource("ShaderMaterial_shaft")
+top_radius = 1.0
+bottom_radius = 0.78
+height = 9.0
+radial_segments = 40
+rings = 1
+cap_top = false
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rim"]
+albedo_color = Color(0.18, 0.17, 0.21, 1)
 roughness = 1.0
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_hole"]
-material = SubResource("StandardMaterial3D_dark")
-top_radius = 1.0
-bottom_radius = 1.0
-height = 0.05
+[sub_resource type="TorusMesh" id="TorusMesh_rim"]
+material = SubResource("StandardMaterial3D_rim")
+inner_radius = 0.98
+outer_radius = 1.18
+rings = 48
+ring_segments = 8
 
-[sub_resource type="CylinderShape3D" id="CylinderShape3D_hole"]
-height = 2.0
-radius = 1.0
+[sub_resource type="ConcavePolygonShape3D" id="ConcavePolygonShape3D_ground"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_wake"]
+height = 30.0
+radius = 4.1
 
 [node name="Hole" type="Node3D"]
 script = ExtResource("1_hole")
 
-[node name="Visual" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 0)
-mesh = SubResource("CylinderMesh_hole")
+[node name="Visual" type="Node3D" parent="."]
+
+[node name="Shaft" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -4.5, 0)
+cast_shadow = 0
+mesh = SubResource("CylinderMesh_shaft")
+
+[node name="Rim" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+mesh = SubResource("TorusMesh_rim")
+
+[node name="Ground" type="StaticBody3D" parent="."]
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
+shape = SubResource("ConcavePolygonShape3D_ground")
 
 [node name="DetectionArea" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 2
+monitorable = false
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="DetectionArea"]
-shape = SubResource("CylinderShape3D_hole")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12, 0)
+shape = SubResource("CylinderShape3D_wake")
 
 [node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12, 6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11.5, 9)
 current = true

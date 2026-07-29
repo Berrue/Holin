@@ -1,8 +1,19 @@
 extends Node3D
 
-## El agujero / jugador. Se mueve por el plano XZ con teclado o arrastre,
-## detecta objetos encima y los traga si son <= su tamaño. Crece por niveles:
-## la XP acumulada desbloquea saltos escalonados de radio.
+## El agujero / jugador. Se mueve por el plano XZ con teclado o arrastre y crece
+## por niveles: la XP acumulada desbloquea saltos escalonados de radio.
+##
+## No "traga" objetos a mano: lo que hace es llevar consigo el SUELO. El nodo
+## Ground es una malla anillo (de radius hacia afuera) con las paredes del pozo
+## colgando hacia abajo, y viaja pegado al agujero. Entonces cualquier objeto
+## dinámico que quede sobre la boca simplemente se queda sin piso y se cae solo,
+## con la física real decidiendo si se vuelca, si engancha en el borde o si se
+## traba contra otro objeto. Lo mismo hace el shader del piso, que descarta los
+## fragmentos de adentro del radio para que se vea el pozo.
+
+# Tipo por preload en vez de class_name: la caché de clases globales vive en
+# .godot/ (ignorada por git) y sin ella el proyecto no arranca fuera del editor.
+const SwallowableRef = preload("res://scripts/swallowable.gd")
 
 @export var move_speed: float = 8.0
 @export var acceleration: float = 24.0    # unidades/s²: qué tan rápido alcanza move_speed
@@ -14,16 +25,28 @@ extends Node3D
 @export var level_radii: Array[float] = [1.0, 1.5, 2.2, 3.2, 4.4, 5.8, 7.4, 9.2]
 @export var level_xp_req: Array[int] = [0, 25, 70, 150, 300, 520, 820, 1200]
 
+const SHAFT_DEPTH := 9.0        # alto de las paredes del pozo (debe coincidir con el shader)
+const SHAFT_TAPER := 0.78       # el pozo se afina hacia el fondo (idem malla visual)
+const GROUND_OUTER := 160.0     # radio del anillo de suelo: tapa todo el mapa desde donde esté
+const GROUND_SEGMENTS := 40
+const SHAPE_EPSILON := 0.05     # cuánto tiene que cambiar el radio para rehacer la colisión
+const WAKE_FACTOR := 2.3        # radio de "despertar" objetos, en radios de agujero
+const WAKE_EXTRA := 1.8
+const FIT_MARGIN := 1.02        # tolerancia de tamaño para dejar suelto un objeto
+
 var xp := 0
 var level := 0
 var _drag_input: Vector2 = Vector2.ZERO    # input táctil/mouse acumulado
 var _velocity: Vector2 = Vector2.ZERO      # velocidad actual en el plano XZ
 var _base_radius: float
 var _base_camera_offset: Vector3
+var _shape_radius := -1.0                  # radio con el que se generó la malla de colisión
 
-@onready var visual: MeshInstance3D = $Visual
+@onready var visual: Node3D = $Visual
+@onready var rim: MeshInstance3D = $Rim
 @onready var detection_area: Area3D = $DetectionArea
 @onready var shape: CollisionShape3D = $DetectionArea/CollisionShape3D
+@onready var ground_shape: CollisionShape3D = $Ground/CollisionShape3D
 @onready var camera: Camera3D = $Camera3D
 
 signal swallowed(xp_gained: int, total_xp: int)
@@ -34,6 +57,7 @@ func _ready() -> void:
 	_base_radius = radius
 	_base_camera_offset = camera.position
 	_apply_radius()
+	_publish_hole_uniforms()
 	# La cámara es hija del agujero (lo sigue). La orientamos una vez hacia él.
 	camera.look_at(global_position, Vector3.UP)
 
@@ -42,8 +66,14 @@ func _physics_process(delta: float) -> void:
 	# Acelerar hacia la velocidad objetivo (también frena suave al soltar).
 	_velocity = _velocity.move_toward(dir * move_speed, acceleration * delta)
 	global_position += Vector3(_velocity.x, 0.0, _velocity.y) * delta
+	_publish_hole_uniforms()
 	_update_camera(delta)
 	_check_swallow()
+
+func _publish_hole_uniforms() -> void:
+	# El piso recorta su propio agujero en el shader: necesita saber dónde está.
+	RenderingServer.global_shader_parameter_set(&"hole_position", global_position)
+	RenderingServer.global_shader_parameter_set(&"hole_radius", radius)
 
 func _update_camera(delta: float) -> void:
 	# El offset base escala con el radio, amortiguado para no alejarse tanto al final.
@@ -61,6 +91,15 @@ func _get_move_direction() -> Vector2:
 	return Vector2.ZERO
 
 func _input(event: InputEvent) -> void:
+	# Teclas de debug: 1 achica un nivel, 2 agranda un nivel.
+	if event is InputEventKey and event.pressed and not event.echo:
+		match (event as InputEventKey).keycode:
+			KEY_1:
+				debug_step_level(-1)
+				return
+			KEY_2:
+				debug_step_level(1)
+				return
 	# Arrastrar dedo (móvil) o mouse (desktop) define la dirección.
 	if event is InputEventScreenDrag:
 		_drag_input = event.relative
@@ -72,23 +111,31 @@ func _input(event: InputEvent) -> void:
 		_drag_input = Vector2.ZERO
 
 func _check_swallow() -> void:
-	for area in detection_area.get_overlapping_areas():
-		if not area.is_in_group("swallowable"):
+	# Acá no se traga nada: sólo se avisa. Lo que entra por tamaño se suelta como
+	# cuerpo dinámico y la física resuelve el resto; lo que no entra, tiembla.
+	for body in detection_area.get_overlapping_bodies():
+		var obj := body as SwallowableRef
+		if obj == null:
 			continue
-		if area.has_meta("being_swallowed"):
-			continue
-		var sw_size: float = area.get("swallow_size")
-		# Distancia horizontal centro-agujero <-> centro-objeto.
-		var hpos := Vector2(global_position.x, global_position.z)
-		var opos := Vector2(area.global_position.x, area.global_position.z)
-		var dist := hpos.distance_to(opos)
-		if sw_size <= radius and dist < radius * 0.9:
-			# La XP NO se otorga acá: el objeto puede escaparse si el agujero
-			# se corre. Se acredita vía señal "consumed" al llegar al fondo.
-			area.set_meta("being_swallowed", true)
-			area.call("be_swallowed", self)
-		elif sw_size > radius and dist < radius * 1.1:
-			area.call("wobble")  # feedback "todavía no podés"
+		var sw := obj.swallow_size
+		var dist := Vector2(global_position.x - obj.global_position.x,
+			global_position.z - obj.global_position.z).length()
+		if sw <= radius * FIT_MARGIN:
+			obj.hole_nearby(self, dist)
+		elif dist < radius + sw * 0.5:
+			obj.wobble()  # feedback "todavía no podés"
+
+func debug_step_level(step: int) -> void:
+	# Salta de nivel a mano, para probar sin tener que comerse media ciudad.
+	# Mueve también la XP al piso del nivel nuevo: si no, al achicar quedaría
+	# XP de sobra y el próximo bocado volvería a subir de nivel al instante.
+	var target := clampi(level + step, 0, level_radii.size() - 1)
+	if target == level:
+		return
+	level = target
+	xp = level_xp_req[level]
+	_animate_grow(level_radii[level])
+	emit_signal("leveled_up", level)
 
 func gain_xp(amount: int) -> void:
 	xp += amount
@@ -110,7 +157,36 @@ func _set_radius(r: float) -> void:
 	_apply_radius()
 
 func _apply_radius() -> void:
-	# Escalar el disco visual y el shape de detección.
 	visual.scale = Vector3(radius, 1.0, radius)
+	rim.scale = Vector3(radius, 0.6 + radius * 0.3, radius)
 	if shape.shape is CylinderShape3D:
-		(shape.shape as CylinderShape3D).radius = radius
+		(shape.shape as CylinderShape3D).radius = radius * WAKE_FACTOR + WAKE_EXTRA
+	# La boca física se rehace sólo cuando el radio cambió lo suficiente: durante
+	# el tween de crecimiento no hace falta regenerar la malla en cada frame.
+	if absf(radius - _shape_radius) > SHAPE_EPSILON:
+		_rebuild_ground_shape()
+
+func _rebuild_ground_shape() -> void:
+	# Anillo de piso (de radius a GROUND_OUTER) + pared cónica del pozo colgando
+	# hacia abajo, todo en una sola malla de colisión que viaja con el agujero.
+	_shape_radius = radius
+	var faces := PackedVector3Array()
+	var bottom_r := radius * SHAFT_TAPER
+	var down := Vector3(0.0, SHAFT_DEPTH, 0.0)
+	for i in GROUND_SEGMENTS:
+		var a0 := TAU * float(i) / float(GROUND_SEGMENTS)
+		var a1 := TAU * float(i + 1) / float(GROUND_SEGMENTS)
+		var c0 := Vector3(cos(a0), 0.0, sin(a0))
+		var c1 := Vector3(cos(a1), 0.0, sin(a1))
+		var in0 := c0 * radius
+		var in1 := c1 * radius
+		var out0 := c0 * GROUND_OUTER
+		var out1 := c1 * GROUND_OUTER
+		var bot0 := c0 * bottom_r - down
+		var bot1 := c1 * bottom_r - down
+		faces.append_array([in0, out1, out0, in0, in1, out1])   # piso, normal hacia arriba
+		faces.append_array([in0, bot0, bot1, in0, bot1, in1])   # pared, normal hacia adentro
+	var sh := ConcavePolygonShape3D.new()
+	sh.backface_collision = true  # que nada se escape por el lado equivocado
+	sh.set_faces(faces)
+	ground_shape.shape = sh
