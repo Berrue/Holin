@@ -8,7 +8,7 @@ extends RefCounted
 ## al fondo del pozo y cortaría el grito por la mitad. Se crea suelto en la
 ## escena, en la posición donde pasó la cosa, y se borra solo al terminar.
 
-enum Kind { NONE, VOICE, DEBRIS, HEAVY, CAR }
+enum Kind { NONE, VOICE, DEBRIS, HEAVY, CAR, SWALLOW_SMALL, SWALLOW_MEDIUM, LEVEL_UP }
 
 const SCREAMS: Array[AudioStream] = [
 	preload("res://assets/audio/scream_1.wav"),
@@ -31,6 +31,19 @@ const CARS: Array[AudioStream] = [
 	preload("res://assets/audio/car_2.wav"),
 	preload("res://assets/audio/car_3.wav"),
 ]
+const SWALLOW_SMALL: Array[AudioStream] = [
+	preload("res://assets/audio/swallow_pop_1.wav"),
+	preload("res://assets/audio/swallow_pop_2.wav"),
+	preload("res://assets/audio/swallow_pop_3.wav"),
+]
+const SWALLOW_MEDIUM: Array[AudioStream] = [
+	preload("res://assets/audio/swallow_mid_1.wav"),
+	preload("res://assets/audio/swallow_mid_2.wav"),
+	preload("res://assets/audio/swallow_mid_3.wav"),
+]
+const LEVEL_UP: Array[AudioStream] = [
+	preload("res://assets/audio/level_up.wav"),
+]
 
 # Tragarse un parque entero de una no puede sonar a mazacote. Se cuentan los
 # reproductores vivos por grupo en vez de llevar un contador estático: así el
@@ -49,7 +62,8 @@ static func play(kind: int, parent: Node, pos: Vector3) -> void:
 	if bank.is_empty() or parent == null or not parent.is_inside_tree():
 		return
 	var tree := parent.get_tree()
-	if tree.get_node_count_in_group(GROUP) >= MAX_VOICES:
+	var voice_limit := MAX_VOICES + 2 if kind == Kind.LEVEL_UP else MAX_VOICES
+	if tree.get_node_count_in_group(GROUP) >= voice_limit:
 		return
 	var p := AudioStreamPlayer3D.new()
 	p.add_to_group(GROUP)
@@ -73,10 +87,33 @@ static func play(kind: int, parent: Node, pos: Vector3) -> void:
 		Kind.CAR:
 			p.volume_db = -3.0
 			p.pitch_scale = randf_range(0.90, 1.12)
+		Kind.SWALLOW_SMALL:
+			p.volume_db = -8.0
+			p.pitch_scale = randf_range(0.94, 1.10)
+		Kind.SWALLOW_MEDIUM:
+			p.volume_db = -3.0
+			p.pitch_scale = randf_range(0.90, 1.06)
+		Kind.LEVEL_UP:
+			p.volume_db = -2.0
+			p.pitch_scale = 1.0
 	parent.add_child(p)
 	p.global_position = pos
 	p.finished.connect(p.queue_free)
 	p.play()
+
+
+static func play_fall(kind: int, size: float, parent: Node, pos: Vector3) -> void:
+	# Autos, voces y derrumbes conservan su identidad. Sólo se completa el hueco
+	# de los props que antes caían mudos.
+	var resolved := kind
+	if resolved == Kind.NONE:
+		if size < 1.2:
+			resolved = Kind.SWALLOW_SMALL
+		elif size < 2.8:
+			resolved = Kind.SWALLOW_MEDIUM
+		else:
+			resolved = Kind.HEAVY
+	play(resolved, parent, pos)
 
 
 static func _bank(kind: int) -> Array[AudioStream]:
@@ -89,4 +126,10 @@ static func _bank(kind: int) -> Array[AudioStream]:
 			return CRUMBLES_BIG
 		Kind.CAR:
 			return CARS
+		Kind.SWALLOW_SMALL:
+			return SWALLOW_SMALL
+		Kind.SWALLOW_MEDIUM:
+			return SWALLOW_MEDIUM
+		Kind.LEVEL_UP:
+			return LEVEL_UP
 	return []

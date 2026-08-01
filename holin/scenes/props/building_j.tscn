@@ -1,0 +1,15 @@
+[gd_scene load_steps=4 format=3 uid="uid://b0prpbldgj001"]
+
+[ext_resource type="PackedScene" path="res://scenes/swallowable.tscn" id="1_swl"]
+[ext_resource type="PackedScene" path="res://assets/kenney_city/building-j.glb" id="2_mdl"]
+[ext_resource type="Material" path="res://resources/city_palette_menta.tres" id="3_pal"]
+
+[node name="BuildingJ" instance=ExtResource("1_swl")]
+auto_setup = true
+auto_footprint = 3.5
+palette_material = ExtResource("3_pal")
+xp_value = 25
+sfx_kind = 2
+break_pieces = 2
+
+[node name="Model" parent="Visual" instance=ExtResource("2_mdl")]

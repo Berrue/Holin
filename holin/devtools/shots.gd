@@ -75,7 +75,7 @@ func _process(_delta: float) -> bool:
 			_setup()
 			_ready_done = true
 		return false
-	if _frame % 30 == 0:
+	if _frame % Autoplay.STEER_EVERY_FRAMES == 0:
 		_bot.steer()
 	if ALSO_AT.has(_frame):
 		root.get_texture().get_image().save_png("%s/%s_%02d.png" % [_dir, TAG, _shots])

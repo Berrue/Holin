@@ -1,0 +1,15 @@
+[gd_resource type="StandardMaterial3D" load_steps=2 format=3 uid="uid://b0palgennoche1"]
+
+; Paleta GENERADA por tools/gen_palettes.py (no viene del pack). Para cambiar
+; sus colores se editan los numeros de PALETTES["noche"] en ese script y se
+; vuelve a correr; el .png se reescribe y esto lo toma solo.
+;
+; Ver city_palette_base.tres sobre por que las paletas son archivos y no
+; materiales creados por codigo (draw calls).
+
+[ext_resource type="Texture2D" path="res://assets/kenney_city/palette-noche.png" id="1_tex"]
+
+[resource]
+resource_name = "Ciudad — noche (generada)"
+albedo_texture = ExtResource("1_tex")
+roughness = 1.0

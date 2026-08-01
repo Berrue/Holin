@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/swallowable.tscn" id="1_swl"]
+[ext_resource type="PackedScene" path="res://assets/kenney_nature/tree_oak.glb" id="2_model"]
+
+[node name="TreeOak" instance=ExtResource("1_swl")]
+auto_setup = true
+auto_footprint = 1.55
+xp_value = 6
+
+[node name="Model" parent="Visual" instance=ExtResource("2_model")]

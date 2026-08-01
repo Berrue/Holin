@@ -111,7 +111,7 @@ func _process(_delta: float) -> bool:
 			_setup()
 			_ready_done = true
 		return false
-	if _frame % 30 == 0:
+	if _frame % Autoplay.STEER_EVERY_FRAMES == 0:
 		_bot.steer()
 	if _frame > WARMUP:
 		var proc: float = Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0

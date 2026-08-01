@@ -1,0 +1,15 @@
+[gd_scene load_steps=4 format=3 uid="uid://b0prpskyc0001"]
+
+[ext_resource type="PackedScene" path="res://scenes/swallowable.tscn" id="1_swl"]
+[ext_resource type="PackedScene" path="res://assets/kenney_city/building-skyscraper-c.glb" id="2_mdl"]
+[ext_resource type="Material" path="res://resources/city_palette_pastel.tres" id="3_pal"]
+
+[node name="SkyscraperC" instance=ExtResource("1_swl")]
+auto_setup = true
+auto_footprint = 4.1
+palette_material = ExtResource("3_pal")
+xp_value = 60
+sfx_kind = 3
+break_pieces = 3
+
+[node name="Model" parent="Visual" instance=ExtResource("2_mdl")]

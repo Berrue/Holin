@@ -12,16 +12,23 @@ const GAME_DURATION := 120.0
 # La partida se gana llegando al puntaje, no sobreviviendo al reloj. Un objetivo
 # cerrado es lo que genera el "una más": un high score suelto no se falla por
 # poco, un 740 de 800 sí. El reloj pasa a ser la presión, no la meta.
-## Calibrado con devtools/stress.gd, no a ojo.
+## Calibrado con devtools/stress.gd, no a ojo. Para recalibrar: poner un número
+## inalcanzable acá, correr el stress, y leer la curva del informe.
 ##
-## La curva de puntaje es muy acelerada —el bot lleva ~300 puntos a los 40 s y
-## ~3300 a los 120— porque el agujero crece y cada bocado vale más. Para
-## recalibrar: poner un número inalcanzable acá, correr el stress y leer la curva.
+## Curva medida en el mapa actual (MAP_HALF 72, con lago y 3 rivales), en puntaje
+## por segundo transcurrido: 33 a los 20 s, 159 a los 60, 722 a los 80, 1467 a
+## los 100 y 2845 a los 120. Es muy acelerada porque el agujero crece y cada
+## bocado vale más — de ahí que casi todo el puntaje salga del último tercio.
 ##
-## OJO: este número depende de los rivales. Sin ellos el bot llegaba a 1800; con
-## tres compitiendo por la misma comida se queda en ~1580. Cualquier cambio en la
-## cantidad de rivales o en su handicap obliga a rehacerlo.
-const SCORE_GOAL := 1200
+## 2100 es ~74% del techo del bot, la misma proporción que tenía el 1200 anterior
+## contra su techo de ~1580 en el mapa de la mitad de lado. Todavía SIN validar
+## con un humano: un jugador real rinde bastante menos que el bot, así que si en
+## el celular se siente inalcanzable, este es el número a bajar.
+##
+## OJO: depende del tamaño del mapa Y de los rivales. Duplicar el lado del mapa
+## cuadruplicó la comida y movió el techo de 1580 a 2845; cambiar la cantidad de
+## rivales o su handicap también obliga a rehacerlo.
+const SCORE_GOAL := 2100
 const HINT_SECS := 4.5  # cuánto queda en pantalla el cartel de arranque
 
 # --- Combo ---
@@ -33,9 +40,16 @@ const HINT_SECS := 4.5  # cuánto queda en pantalla el cartel de arranque
 const COMBO_WINDOW := 1.2   # segundos para encadenar el siguiente
 const COMBO_PER_STEP := 4   # cada cuántos bocados sube un escalón el multiplicador
 const COMBO_MAX_MULT := 4
+const COMBO_HUD_COLORS := [
+	Color(1.0, 0.56, 0.12),
+	Color(1.0, 0.76, 0.14),
+	Color(1.0, 0.94, 0.52),
+]
 
 # El piso usa shader propio: recorta la boca del pozo y se oscurece en el borde.
 const GROUND_SHADER := preload("res://shaders/ground_hole.gdshader")
+# Material propio del lago: textura procedural animada, brillo y espuma de costa.
+const WATER_SHADER := preload("res://shaders/water.gdshader")
 # Recorta un pedazo del modelo por franja de altura (ver el shader).
 const PIECE_SHADER := preload("res://shaders/building_piece.gdshader")
 
@@ -48,6 +62,9 @@ const JoystickRef = preload("res://scripts/virtual_joystick.gd")
 const RivalRef = preload("res://scripts/rival_hole.gd")
 const ArrowsRef = preload("res://scripts/rival_arrows.gd")
 const BoardRef = preload("res://scripts/leaderboard.gd")
+const TrafficSpawnerRef = preload("res://scripts/traffic_spawner.gd")
+const RemoteHoleRef = preload("res://scripts/remote_hole.gd")
+const REMOTE_HOLE_SCENE := preload("res://scenes/remote_hole.tscn")
 
 # --- Rivales ---
 const RIVALS := [
@@ -76,6 +93,11 @@ const RIVAL_START_CLEAR := 18.0  # a qué distancia mínima del jugador arrancan
 @onready var sun: DirectionalLight3D = $DirectionalLight3D
 @onready var ground: MeshInstance3D = $Ground
 @onready var music: AudioStreamPlayer = $Music
+@onready var player_start: Marker3D = $AuthoredCity/Markers/PlayerStart
+@onready var lake_root: Node3D = $AuthoredCity/Lake
+@onready var traffic_spawner := $TrafficSpawner as TrafficSpawnerRef
+@onready var remote_players: Node3D = $RemotePlayers
+@onready var network_status: Label = $UI/NetworkStatus
 
 var time_left := GAME_DURATION
 var score := 0
@@ -85,12 +107,42 @@ var won := false
 var combo := 0
 var rivals: Array = []
 var _combo_left := 0.0
+var _combo_panel: PanelContainer
 var _combo_label: Label
+var _combo_bar: ProgressBar
+var _combo_panel_style: StyleBoxFlat
+var _combo_fill_style: StyleBoxFlat
+var _combo_panel_tween: Tween
+var _combo_last_mult := 1
+var _start_position := START_POS
 
 # --- Layout de la ciudad ---
-const ROAD_LINES := [-32, -16, 0, 16, 32]   # ejes de las calles (X y Z)
-const BLOCK_CENTERS := [-24, -8, 8, 24]      # centros de manzana (entre calles)
-const MAP_HALF := 36.0
+# Mundo del doble de lado que antes (era MAP_HALF 36, 5 calles, 4 manzanas por
+# eje): mismo paso de 16 entre calles, más calles. Cuadruplica el área, así que
+# también se cuadruplican parques y peatones más abajo para mantener la densidad.
+const ROAD_LINES := [-64, -48, -32, -16, 0, 16, 32, 48, 64]   # ejes de las calles (X y Z)
+const BLOCK_CENTERS := [-56, -40, -24, -8, 8, 24, 40, 56]      # centros de manzana (entre calles)
+const MAP_HALF := 72.0
+
+const LAKE_HALF_EXTENTS := Vector2(3.0, 2.5)
+const BASIN_HALF_EXTENTS := Vector2(3.5, 3.0)
+
+# --- Agua del mapa ---
+# El lago principal vive dentro de una manzana en main.tscn, sin cortar calles.
+# La plaza central tiene una fuente más chica, también authored en la escena.
+# Estas medidas mantienen libre la red vial y delimitan la zona no transitable.
+const LAKE_RADIUS := 3.0
+# El agua vive dentro de una pileta cuadrada de hormigón. El borde es visible y
+# también tiene colisión; BASIN_OUTER_HALF incluye el espesor de los muros.
+const BASIN_HALF := 3.5
+const BASIN_WALL_WIDTH := 0.5
+const BASIN_WALL_HEIGHT := 0.55
+const BASIN_OUTER_HALF := BASIN_HALF + BASIN_WALL_WIDTH * 0.5
+const BASIN_FLOOR_HEIGHT := 0.18
+const Y_BASIN_TOP := 0.018
+const Y_WATER := 0.040
+## Posición de respaldo. En juego manda AuthoredCity/Markers/PlayerStart.
+const START_POS := Vector3(0.0, 0.0, 32.0)
 const ROAD_W := 5.0
 const SIDE_W := 1.6
 const Y_SIDEWALK := 0.006
@@ -98,19 +150,37 @@ const Y_ROAD := 0.010
 const Y_LINE := 0.014
 const START_CLEAR := 4.5  # radio despejado alrededor del arranque del agujero
 
-# Modelos Kenney (CC0).
+# --- Biblioteca de props (escenas, no .glb sueltos) ---
+# Cada entrada es una escena de scenes/props/ que se configura sola: trae su
+# modelo, su paleta, su ancho, su XP y en cuántos pedazos se parte. Para tocar
+# cualquiera de esas cosas se abre la escena en el editor — no hay que venir acá.
+# Para sumar un edificio nuevo: duplicás una escena de props, le cambiás el
+# modelo, y la agregás a la lista.
+#
+# Los 19 tipos salen del pack Kenney (CC0) repartidos en 3 paletas
+# (resources/city_palette_*.tres): mismo modelo, otro atlas, otra fachada.
 const BUILDINGS_LOW := [
-	"res://assets/kenney_city/building-a.glb",
-	"res://assets/kenney_city/building-c.glb",
-	"res://assets/kenney_city/building-e.glb",
-	"res://assets/kenney_city/building-g.glb",
-	"res://assets/kenney_city/building-i.glb",
-	"res://assets/kenney_city/building-k.glb",
+	preload("res://scenes/props/building_a.tscn"),
+	preload("res://scenes/props/building_b.tscn"),
+	preload("res://scenes/props/building_c.tscn"),
+	preload("res://scenes/props/building_d.tscn"),
+	preload("res://scenes/props/building_e.tscn"),
+	preload("res://scenes/props/building_f.tscn"),
+	preload("res://scenes/props/building_g.tscn"),
+	preload("res://scenes/props/building_h.tscn"),
+	preload("res://scenes/props/building_i.tscn"),
+	preload("res://scenes/props/building_j.tscn"),
+	preload("res://scenes/props/building_k.tscn"),
+	preload("res://scenes/props/building_l.tscn"),
+	preload("res://scenes/props/building_m.tscn"),
+	preload("res://scenes/props/building_n.tscn"),
 ]
 const SKYSCRAPERS := [
-	"res://assets/kenney_city/building-skyscraper-a.glb",
-	"res://assets/kenney_city/building-skyscraper-c.glb",
-	"res://assets/kenney_city/building-skyscraper-e.glb",
+	preload("res://scenes/props/skyscraper_a.tscn"),
+	preload("res://scenes/props/skyscraper_b.tscn"),
+	preload("res://scenes/props/skyscraper_c.tscn"),
+	preload("res://scenes/props/skyscraper_d.tscn"),
+	preload("res://scenes/props/skyscraper_e.tscn"),
 ]
 const CARS := [
 	"res://assets/kenney_car/sedan.glb",
@@ -153,31 +223,51 @@ const URBAN_PROPS := [
 const BLOCK_HALF := 3.6  # medio ancho útil de una manzana (sin pisar vereda/calle)
 
 # XP que da cada tipo de objeto al ser tragado.
-const XP_SKYSCRAPER := 60
-const XP_BUILDING := 25
+# Los edificios y rascacielos NO están acá: su XP (25 y 60) vive en cada escena
+# de scenes/props/, junto con su tamaño y su paleta.
 const XP_CAR := 12
 const XP_TREE := 6
 const XP_URBAN_PROP := 3
 const XP_PARK_PROP := 2
 const XP_PEDESTRIAN := 1
 
-# --- Golpe al tragar ---
+# --- Golpe al tragar: tres escalones perceptualmente distintos ---
 # Los umbrales están en swallow_size, que es el ancho real del objeto en metros:
 # props y peatones 0.4-0.9, árboles 1.0-1.6, autos 1.5-1.9, edificios 2.4-4.0,
 # rascacielos 3.4-4.8.
-const IMPACT_MIN_SIZE := 1.2    # abajo de esto no pasa nada: sacudir por un cesto es ruido
+const IMPACT_MEDIUM_SIZE := 1.2
+const IMPACT_LARGE_SIZE := 2.8
 const IMPACT_FULL_SIZE := 4.5   # de acá para arriba, golpe máximo
-const IMPACT_CURVE := 1.4       # >1 aplasta la parte baja: el auto se insinúa, el edificio pega
-const HITSTOP_MIN_SIZE := 2.8   # frenar el tiempo sólo de edificio para arriba
 const HITSTOP_SCALE := 0.08
 const HITSTOP_SECS := 0.07
 # Un derrumbe manda tres pedazos a la boca en menos de medio segundo. Sin este
 # piso entre frenos, el juego tartamudea tres veces seguidas.
 const HITSTOP_COOLDOWN := 0.35
 
-# --- Derrumbe por pedazos ---
-const PIECES_SKYSCRAPER := 3
-const PIECES_BUILDING := 2
+# --- Revelado al crecer ---
+const UNLOCK_REVEAL_MIN_RANGE := 14.0
+const UNLOCK_REVEAL_RADIUS_FACTOR := 3.0
+const UNLOCK_REVEAL_MAX_OBJECTS := 12
+
+# El derrumbe por pedazos (break_pieces: 2 para edificios, 3 para rascacielos)
+# también se define por prop, en scenes/props/.
+
+# --- Rig del peatón ---
+# Alturas medidas para que las piernas se VEAN. El primer intento tenía el torso
+# centrado en 0.20 (o sea bajando hasta 0.03) y las piernas de 0 a 0.14: quedaban
+# casi enteras adentro de la cápsula y sólo asomaban dos tacos. Subiendo el torso
+# a 0.30 las piernas tienen los 0.16 completos por debajo.
+#
+#   piernas  0.00 → 0.16     cadera a 0.16
+#   torso    0.13 → 0.47     cápsula r=0.09, centro 0.30
+#   brazos   0.24 → 0.40     hombro a 0.40
+#   cabeza   0.47 → 0.61     esfera r=0.07, centro 0.54
+const LIMB_LEN := 0.16
+const HIP_Y := 0.16
+const SHOULDER_Y := 0.40
+const BODY_Y := 0.30
+const HEAD_Y := 0.54
+const PED_HEIGHT := 0.62
 
 const SHIRT_COLORS := [
 	Color(0.85, 0.30, 0.30), Color(0.30, 0.50, 0.85), Color(0.35, 0.70, 0.40),
@@ -190,8 +280,10 @@ var _strip_mesh: BoxMesh
 # instancia son draw calls regalados: 32 peatones pasan de 6 a 128.
 var _ped_body_mesh: CapsuleMesh
 var _ped_head_mesh: SphereMesh
+var _ped_limb_mesh: BoxMesh          # la misma para brazos y piernas
 var _shirt_mats: Array[StandardMaterial3D] = []
 var _skin_mat: StandardMaterial3D
+var _pants_mat: StandardMaterial3D
 var _grass_mat: ShaderMaterial
 var _city: Node3D
 var _park_blocks := {}       # Vector2i(ix, iz) -> true: manzanas que son parque
@@ -202,9 +294,12 @@ var _bar_tween: Tween
 var _timer_urgent := false
 var _hitstop_until := 0.0    # msec del reloj REAL en que se suelta el freno
 var _hitstop_ready_at := 0.0 # msec antes del cual no se admite otro freno
+var _network_send_left := 0.0
 
 func _ready() -> void:
 	Engine.time_scale = 1.0  # red de contención: si una partida anterior murió frenada
+	if NetworkSession.is_networked():
+		seed(NetworkSession.match_seed)
 	# Orientar el sol en código (evita serializar una base rotada en el .tscn).
 	# X = -40: el sol pega desde 40° sobre el horizonte (sol bajo, de tarde), que
 	# da sombras largas y marcadas — un edificio de 10 m tira unos 12 m. Y = -35
@@ -234,13 +329,24 @@ func _ready() -> void:
 	# El número crece desde su izquierda, no desde el centro del label.
 	score_value.pivot_offset = Vector2(0.0, 22.0)
 	badge.pivot_offset = Vector2(26.0, 26.0)
-	_placed.append(Vector3(0.0, 0.0, START_CLEAR))  # el agujero arranca despejado
+	_adopt_manual_swallowables()
+	# El inicio también vive en main.tscn: mover AuthoredCity/Markers/PlayerStart
+	# en el editor cambia dónde arranca el jugador sin tocar este script.
+	_start_position = player_start.global_position
+	hole.global_position = _start_position
+	if NetworkSession.is_networked():
+		hole.global_position = _network_spawn_position(multiplayer.get_unique_id())
+	# Estas reservas siguen protegiendo el tráfico dinámico y permiten conservar
+	# las herramientas de generación antiguas como referencia, pero la geometría,
+	# parques y edificios ya viven persistidos en AuthoredCity dentro de main.tscn.
+	_placed.append(Vector3(_start_position.x, _start_position.z, START_CLEAR))
+	var lake_center := _lake_center_xz()
+	_placed.append(Vector3(lake_center.x, lake_center.y, BASIN_HALF_EXTENTS.length()))
 	_build_shared_assets()
-	_build_city_ground()
-	_pick_parks()
-	_populate_blocks()
 	_spawn_cars_on_roads()
 	_spawn_pedestrians()
+	traffic_spawner.car_spawn_requested.connect(_spawn_car_from_edge)
+	traffic_spawner.npc_spawn_requested.connect(_spawn_pedestrian_from_edge)
 	_spawn_rivals()
 	_build_combo_label()
 	_show_hint()
@@ -249,7 +355,31 @@ func _ready() -> void:
 	hole.leveled_up.connect(_on_leveled_up)
 	replay_button.pressed.connect(_on_replay)
 	menu_button.pressed.connect(_on_menu)
+	_setup_network_game()
 	_update_hud()
+
+func _adopt_manual_swallowables() -> void:
+	# Un swallowable armado a mano (auto_setup=true en el Inspector) ya se
+	# configuró solo en su propio _ready(), que corre ANTES que este —los hijos
+	# de la escena siempre arrancan antes que el padre—. Sólo falta conectarlo a
+	# la partida: sin esto comería igual (la física no distingue) pero no
+	# sumaría puntaje, no pegaría el golpe de impacto, y si es un edificio
+	# partible se quedaría tildado para siempre esperando que alguien atienda
+	# wants_break.
+	#
+	# En el editor permanecen ordenados por manzana/parque dentro de AuthoredCity.
+	# Al iniciar la partida se mueven a Swallowables conservando su transform
+	# global: así los rivales, el bot de QA y el derrumbe los encuentran por el
+	# mismo camino que a los autos y peatones dinámicos.
+	for s in get_tree().get_nodes_in_group("swallowable"):
+		var obj := s as SwallowableRef
+		if obj == null or obj.consumed.is_connected(_on_object_consumed):
+			continue
+		if obj.get_parent() != swallowables:
+			obj.reparent(swallowables, true)
+		obj.consumed.connect(_on_object_consumed)
+		obj.fell_in.connect(_on_object_fell_in)
+		obj.wants_break.connect(_on_wants_break)
 
 # ----------------------------------------------------------------------------
 # Loop de partida
@@ -261,12 +391,14 @@ func _process(delta: float) -> void:
 	# del árbol, así que ni recargar la escena lo arregla.
 	if Engine.time_scale < 1.0 and Time.get_ticks_msec() >= _hitstop_until:
 		Engine.time_scale = 1.0
+	_network_tick(delta)
 	if not running:
 		return
 	if _combo_left > 0.0:
 		_combo_left -= delta
 		if _combo_left <= 0.0:
 			_reset_combo()
+	_update_combo_timer()
 	time_left -= delta
 	if time_left <= 0.0:
 		time_left = 0.0
@@ -301,25 +433,126 @@ func _on_replay() -> void:
 
 func _on_menu() -> void:
 	get_tree().paused = false
+	NetworkSession.disconnect_session()
 	get_tree().change_scene_to_file(MENU_SCENE)
+
+func _setup_network_game() -> void:
+	network_status.visible = NetworkSession.is_networked()
+	if not NetworkSession.is_networked():
+		return
+	NetworkSession.peer_joined.connect(_on_network_peer_joined)
+	NetworkSession.peer_left.connect(_on_network_peer_left)
+	NetworkSession.players_changed.connect(_refresh_network_status)
+	NetworkSession.state_changed.connect(_on_network_state_changed)
+	for peer_id in multiplayer.get_peers():
+		_ensure_remote_player(int(peer_id))
+	_refresh_network_status()
+
+func _network_tick(delta: float) -> void:
+	if not NetworkSession.is_networked():
+		return
+	_network_send_left -= delta
+	if _network_send_left > 0.0:
+		return
+	_network_send_left = 0.05
+	var peer_id := multiplayer.get_unique_id()
+	if multiplayer.is_server():
+		_client_receive_player_state.rpc(peer_id, hole.global_position, hole.radius, score, hole.level)
+	else:
+		_server_receive_player_state.rpc_id(1, hole.global_position, hole.radius, score, hole.level)
+
+func _network_spawn_position(peer_id: int) -> Vector3:
+	var side := -1.0 if peer_id == 1 else 1.0
+	return _start_position + Vector3(side * 4.0, 0.0, 0.0)
+
+func _ensure_remote_player(peer_id: int) -> RemoteHoleRef:
+	if peer_id == multiplayer.get_unique_id():
+		return null
+	var existing := remote_players.get_node_or_null(str(peer_id)) as RemoteHoleRef
+	if existing != null:
+		return existing
+	var proxy := REMOTE_HOLE_SCENE.instantiate() as RemoteHoleRef
+	proxy.name = str(peer_id)
+	proxy.setup(peer_id, NetworkSession.get_player_name(peer_id), _network_spawn_position(peer_id))
+	remote_players.add_child(proxy)
+	return proxy
+
+func _apply_remote_player_state(peer_id: int, pos: Vector3, radius: float, remote_score: int, remote_level: int) -> void:
+	if peer_id == multiplayer.get_unique_id():
+		return
+	var safe_pos := pos
+	safe_pos.x = clampf(safe_pos.x, -MAP_HALF - 12.0, MAP_HALF + 12.0)
+	safe_pos.y = 0.0
+	safe_pos.z = clampf(safe_pos.z, -MAP_HALF - 12.0, MAP_HALF + 12.0)
+	var proxy := _ensure_remote_player(peer_id)
+	if proxy != null:
+		proxy.push_state(safe_pos, radius, remote_score, remote_level)
+
+func _on_network_peer_joined(peer_id: int) -> void:
+	_ensure_remote_player(peer_id)
+	_refresh_network_status()
+
+func _on_network_peer_left(peer_id: int) -> void:
+	var proxy := remote_players.get_node_or_null(str(peer_id))
+	if proxy != null:
+		proxy.queue_free()
+	_refresh_network_status()
+
+func _on_network_state_changed() -> void:
+	if NetworkSession.is_networked():
+		_refresh_network_status()
+		return
+	for proxy in remote_players.get_children():
+		proxy.queue_free()
+	network_status.visible = false
+
+func _refresh_network_status() -> void:
+	if not NetworkSession.is_networked():
+		network_status.visible = false
+		return
+	network_status.visible = true
+	var role := "HOST" if NetworkSession.is_host() else "CLIENTE"
+	network_status.text = "%s  |  %s  |  ENet :%d" % [
+		role, NetworkSession.get_player_name(multiplayer.get_unique_id()), NetworkSession.DEFAULT_PORT]
+
+@rpc("any_peer", "call_remote", "unreliable_ordered", 1)
+func _server_receive_player_state(pos: Vector3, radius: float, remote_score: int, remote_level: int) -> void:
+	if not multiplayer.is_server():
+		return
+	var peer_id := multiplayer.get_remote_sender_id()
+	if not NetworkSession.player_names.has(peer_id):
+		return
+	_apply_remote_player_state(peer_id, pos, radius, remote_score, remote_level)
+	_client_receive_player_state.rpc(peer_id, pos, radius, remote_score, remote_level)
+
+@rpc("authority", "call_remote", "unreliable_ordered", 1)
+func _client_receive_player_state(peer_id: int, pos: Vector3, radius: float, remote_score: int, remote_level: int) -> void:
+	_apply_remote_player_state(peer_id, pos, radius, remote_score, remote_level)
 
 func _on_object_consumed(xp: int) -> void:
 	# El objeto llegó al fondo del pozo: recién ahora se acredita la XP.
 	hole.gain_xp(xp)
 
 func _on_object_fell_in(size: float, at: Vector3, weight: float) -> void:
-	# Golpe proporcional a lo que entró: un cesto no mueve nada, un rascacielos
-	# sacude el teléfono. Este es el momento que nos diferencia y hasta ahora
-	# pasaba en silencio.
-	var t := clampf(inverse_lerp(IMPACT_MIN_SIZE, IMPACT_FULL_SIZE, size), 0.0, 1.0)
-	if t <= 0.0:
+	# Cada rango usa una gramática distinta. Si todo fuera el mismo efecto
+	# escalado, veinte props chicos ensuciarían la pantalla y un edificio no
+	# tendría un escalón propio de peso.
+	if size < IMPACT_MEDIUM_SIZE:
+		hole.pulse_rim(0.025 * weight, at)
 		return
-	var punch := pow(t, IMPACT_CURVE) * weight
-	hole.shake(hole.shake_strength * punch)
-	hole.pulse_rim(0.06 + 0.14 * punch, at)
-	hole.burst_dust(size, punch, at)
-	if size >= HITSTOP_MIN_SIZE:
-		_hitstop()
+	if size < IMPACT_LARGE_SIZE:
+		var medium_t := clampf(inverse_lerp(IMPACT_MEDIUM_SIZE, IMPACT_LARGE_SIZE, size), 0.0, 1.0)
+		var medium_punch := (0.16 + medium_t * 0.24) * weight
+		hole.shake(hole.shake_strength * medium_punch * 0.45)
+		hole.pulse_rim((0.055 + medium_t * 0.05) * weight, at)
+		hole.burst_dust(size, medium_punch, at)
+		return
+	var large_t := clampf(inverse_lerp(IMPACT_LARGE_SIZE, IMPACT_FULL_SIZE, size), 0.0, 1.0)
+	var large_punch := (0.48 + pow(large_t, 1.25) * 0.52) * weight
+	hole.shake(hole.shake_strength * large_punch)
+	hole.pulse_rim((0.12 + 0.10 * large_punch) * weight, at)
+	hole.burst_dust(size, large_punch, at)
+	_hitstop()
 
 func _hitstop() -> void:
 	# Freno brevísimo justo cuando la mole cruza la boca: la imagen se clava un
@@ -423,6 +656,7 @@ func _on_swallowed(xp_gained: int, _total_xp: int) -> void:
 	score += ganado
 	_update_hud()
 	_update_combo_label()
+	_update_combo_timer()
 	_bump_score()
 	_spawn_float_label("+%d" % ganado, hole.global_position + Vector3.UP * 0.5, mult > 1)
 	if score >= SCORE_GOAL:
@@ -435,36 +669,65 @@ func _reset_combo() -> void:
 	combo = 0
 	_combo_left = 0.0
 	_update_combo_label()
+	_update_combo_timer()
 
 func _update_combo_label() -> void:
 	var mult := combo_mult()
 	if mult <= 1:
-		# Sólo aparece cuando ya multiplica: un "x1" permanente es ruido de HUD.
-		if _combo_label.visible:
-			_combo_label.visible = false
+		_hide_combo_panel()
 		return
-	var nuevo := not _combo_label.visible
-	_combo_label.visible = true
-	_combo_label.text = "x%d  COMBO" % mult
-	# Golpecito en cada bocado, más fuerte cuando sube de escalón.
-	_combo_label.scale = Vector2.ONE * (1.5 if nuevo or combo % COMBO_PER_STEP == 0 else 1.18)
-	create_tween().tween_property(_combo_label, "scale", Vector2.ONE, 0.3) \
+	var tier_changed := mult != _combo_last_mult
+	_combo_last_mult = mult
+	var color: Color = COMBO_HUD_COLORS[mult - 2]
+	_combo_label.text = "x%d" % mult
+	_combo_label.add_theme_color_override("font_color", color)
+	_combo_panel_style.border_color = color
+	_combo_fill_style.bg_color = color
+	if _combo_panel_tween != null and _combo_panel_tween.is_valid():
+		_combo_panel_tween.kill()
+	_combo_panel.visible = true
+	_combo_panel.modulate.a = 1.0
+	_combo_panel.rotation = -0.035 if tier_changed else 0.0
+	_combo_panel.scale = Vector2.ONE * (1.28 if tier_changed else 1.10)
+	_combo_panel_tween = create_tween().set_parallel(true)
+	_combo_panel_tween.tween_property(_combo_panel, "scale", Vector2.ONE, 0.30) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_combo_panel_tween.tween_property(_combo_panel, "rotation", 0.0, 0.24) \
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
+func _hide_combo_panel() -> void:
+	_combo_last_mult = 1
+	if _combo_panel == null or not _combo_panel.visible:
+		return
+	if _combo_panel_tween != null and _combo_panel_tween.is_valid():
+		_combo_panel_tween.kill()
+	_combo_panel_tween = create_tween().set_parallel(true)
+	_combo_panel_tween.tween_property(_combo_panel, "scale", Vector2.ONE * 0.82, 0.16) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_combo_panel_tween.tween_property(_combo_panel, "modulate:a", 0.0, 0.16)
+	_combo_panel_tween.chain().tween_callback(func(): _combo_panel.visible = false)
+
+func _update_combo_timer() -> void:
+	if _combo_bar == null:
+		return
+	_combo_bar.value = clampf(_combo_left / COMBO_WINDOW, 0.0, 1.0) * 100.0
+
 func _on_leveled_up(new_level: int) -> void:
-	# Cartel central con pop elástico.
+	_reveal_newly_swallowable(new_level)
+	Sfx.play(Sfx.Kind.LEVEL_UP, self, hole.global_position)
+	# El cartel dice qué cambió en el juego, no sólo el número administrativo.
 	var lbl := Label.new()
-	lbl.text = "¡NIVEL %d!" % (new_level + 1)
-	lbl.add_theme_font_size_override("font_size", 56)
+	lbl.text = "¡NIVEL %d!\n¡PODÉS COMER MÁS GRANDE!" % (new_level + 1)
+	lbl.add_theme_font_size_override("font_size", 42)
 	lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
 	lbl.add_theme_color_override("font_outline_color", Color.BLACK)
 	lbl.add_theme_constant_override("outline_size", 10)
-	lbl.custom_minimum_size = Vector2(420, 70)
+	lbl.custom_minimum_size = Vector2(620, 116)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	$UI.add_child(lbl)
 	var vp := get_viewport().get_visible_rect().size
-	lbl.position = Vector2(vp.x * 0.5 - 210.0, vp.y * 0.28)
-	lbl.pivot_offset = Vector2(210, 35)
+	lbl.position = Vector2(vp.x * 0.5 - 310.0, vp.y * 0.24)
+	lbl.pivot_offset = Vector2(310, 58)
 	lbl.scale = Vector2(0.2, 0.2)
 	var t := create_tween()
 	t.tween_property(lbl, "scale", Vector2.ONE, 0.35) \
@@ -477,6 +740,28 @@ func _on_leveled_up(new_level: int) -> void:
 	create_tween().tween_property(badge, "scale", Vector2.ONE, 0.4) \
 		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 	_update_hud()
+
+func _reveal_newly_swallowable(new_level: int) -> int:
+	if new_level <= 0 or new_level >= hole.level_radii.size():
+		return 0
+	var old_radius: float = hole.level_radii[new_level - 1]
+	var new_radius: float = hole.level_radii[new_level]
+	var reveal_range := maxf(UNLOCK_REVEAL_MIN_RANGE, new_radius * UNLOCK_REVEAL_RADIUS_FACTOR)
+	var candidates: Array = []
+	for node in swallowables.get_children():
+		var obj := node as SwallowableRef
+		if obj == null or not obj.is_in_group("swallowable"):
+			continue
+		if obj.fits_hole(old_radius) or not obj.fits_hole(new_radius):
+			continue
+		var distance_sq: float = obj.global_position.distance_squared_to(hole.global_position)
+		if distance_sq <= reveal_range * reveal_range:
+			candidates.append({"obj": obj, "distance_sq": distance_sq})
+	candidates.sort_custom(func(a, b): return a.distance_sq < b.distance_sq)
+	var shown := mini(candidates.size(), UNLOCK_REVEAL_MAX_OBJECTS)
+	for i in shown:
+		(candidates[i].obj as SwallowableRef).reveal_unlocked()
+	return shown
 
 func _spawn_float_label(text: String, world_pos: Vector3, big: bool = false) -> void:
 	# "+N" flotante: puntos ganados, dibujados sobre el agujero y subiendo. Con
@@ -508,15 +793,74 @@ func _update_hud() -> void:
 	_update_timer_label()
 
 func _build_combo_label() -> void:
+	_combo_panel = PanelContainer.new()
+	_combo_panel.name = "ComboPanel"
+	_combo_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_combo_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_combo_panel.offset_left = -190.0
+	_combo_panel.offset_top = 112.0
+	_combo_panel.offset_right = -22.0
+	_combo_panel.offset_bottom = 236.0
+	_combo_panel.pivot_offset = Vector2(84.0, 62.0)
+	_combo_panel_style = StyleBoxFlat.new()
+	_combo_panel_style.bg_color = Color(0.055, 0.045, 0.075, 0.92)
+	_combo_panel_style.border_width_left = 3
+	_combo_panel_style.border_width_top = 3
+	_combo_panel_style.border_width_right = 3
+	_combo_panel_style.border_width_bottom = 3
+	_combo_panel_style.corner_radius_top_left = 24
+	_combo_panel_style.corner_radius_top_right = 24
+	_combo_panel_style.corner_radius_bottom_left = 24
+	_combo_panel_style.corner_radius_bottom_right = 24
+	_combo_panel_style.shadow_color = Color(0.0, 0.0, 0.0, 0.42)
+	_combo_panel_style.shadow_size = 9
+	_combo_panel.add_theme_stylebox_override("panel", _combo_panel_style)
+	var margin := MarginContainer.new()
+	for side in ["left", "top", "right", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 12)
+	_combo_panel.add_child(margin)
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", -5)
+	margin.add_child(box)
 	_combo_label = Label.new()
-	_combo_label.add_theme_font_size_override("font_size", 30)
-	_combo_label.add_theme_color_override("font_color", Color(1.0, 0.62, 0.2))
+	_combo_label.text = "x2"
+	_combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_combo_label.add_theme_font_size_override("font_size", 54)
+	_combo_label.add_theme_color_override("font_color", COMBO_HUD_COLORS[0])
 	_combo_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	_combo_label.add_theme_constant_override("outline_size", 8)
-	_combo_label.position = Vector2(22.0, 262.0)  # despejado del panel de puntaje
-	_combo_label.pivot_offset = Vector2(0.0, 18.0)  # crece desde su izquierda
-	_combo_label.visible = false
-	$UI.add_child(_combo_label)
+	_combo_label.add_theme_constant_override("outline_size", 7)
+	box.add_child(_combo_label)
+	var caption := Label.new()
+	caption.text = "COMBO"
+	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	caption.add_theme_font_size_override("font_size", 16)
+	caption.add_theme_color_override("font_color", Color(0.92, 0.90, 0.98, 0.84))
+	caption.add_theme_constant_override("outline_size", 4)
+	box.add_child(caption)
+	_combo_bar = ProgressBar.new()
+	_combo_bar.custom_minimum_size = Vector2(132.0, 8.0)
+	_combo_bar.min_value = 0.0
+	_combo_bar.max_value = 100.0
+	_combo_bar.value = 100.0
+	_combo_bar.show_percentage = false
+	var bar_bg := StyleBoxFlat.new()
+	bar_bg.bg_color = Color(1.0, 1.0, 1.0, 0.12)
+	bar_bg.corner_radius_top_left = 4
+	bar_bg.corner_radius_top_right = 4
+	bar_bg.corner_radius_bottom_left = 4
+	bar_bg.corner_radius_bottom_right = 4
+	_combo_fill_style = StyleBoxFlat.new()
+	_combo_fill_style.bg_color = COMBO_HUD_COLORS[0]
+	_combo_fill_style.corner_radius_top_left = 4
+	_combo_fill_style.corner_radius_top_right = 4
+	_combo_fill_style.corner_radius_bottom_left = 4
+	_combo_fill_style.corner_radius_bottom_right = 4
+	_combo_bar.add_theme_stylebox_override("background", bar_bg)
+	_combo_bar.add_theme_stylebox_override("fill", _combo_fill_style)
+	box.add_child(_combo_bar)
+	_combo_panel.visible = false
+	$UI.add_child(_combo_panel)
 
 func _show_hint() -> void:
 	# Cartel de arranque, como el del juego de referencia: la partida ahora empieza
@@ -605,19 +949,131 @@ func _build_city_ground() -> void:
 	var mat_side := _make_ground_mat(Color(0.72, 0.72, 0.70))
 	var mat_asph := _make_ground_mat(Color(0.16, 0.16, 0.19))
 	var mat_line := _make_ground_mat(Color(0.92, 0.80, 0.22))
-	var length := MAP_HALF * 2.0
 
 	for line in ROAD_LINES:
 		var lf := float(line)
-		# Vereda (más ancha, abajo) — corre a lo largo de Z y de X.
-		_add_strip(city, lf, 0.0, ROAD_W + SIDE_W * 2.0, length, Y_SIDEWALK, mat_side)
-		_add_strip(city, 0.0, lf, length, ROAD_W + SIDE_W * 2.0, Y_SIDEWALK, mat_side)
-		# Asfalto.
-		_add_strip(city, lf, 0.0, ROAD_W, length, Y_ROAD, mat_asph)
-		_add_strip(city, 0.0, lf, length, ROAD_W, Y_ROAD, mat_asph)
-		# Línea central.
-		_add_strip(city, lf, 0.0, 0.25, length, Y_LINE, mat_line)
-		_add_strip(city, 0.0, lf, length, 0.25, Y_LINE, mat_line)
+		for along_x in [false, true]:
+			# Vereda (más ancha, abajo), asfalto, y línea central.
+			_add_road(along_x, lf, ROAD_W + SIDE_W * 2.0, Y_SIDEWALK, mat_side)
+			_add_road(along_x, lf, ROAD_W, Y_ROAD, mat_asph)
+			_add_road(along_x, lf, 0.25, Y_LINE, mat_line)
+	_add_lake()
+
+func _add_road(along_x: bool, lf: float, width: float, y: float, mat: Material) -> void:
+	# Una calle de punta a punta del mapa, PERO cortada si el lago se le cruza:
+	# ahí se emiten dos tramos que mueren en la orilla. `along_x` = corre a lo
+	# largo del eje X (o sea z = lf); si no, corre a lo largo de Z (x = lf).
+	#
+	# `gap` es la media cuerda del círculo del lago a la altura de esta calle:
+	# de Pitágoras, sqrt(r² - lf²). Si la calle pasa por afuera del lago no hay
+	# corte y va entera.
+	var gap := 0.0
+	if absf(lf) < LAKE_RADIUS:
+		gap = sqrt(LAKE_RADIUS * LAKE_RADIUS - lf * lf)
+	if gap <= 0.0:
+		if along_x:
+			_add_strip(_city, 0.0, lf, MAP_HALF * 2.0, width, y, mat)
+		else:
+			_add_strip(_city, lf, 0.0, width, MAP_HALF * 2.0, y, mat)
+		return
+	var seg := MAP_HALF - gap
+	if seg <= 0.1:
+		return  # el lago se la come entera
+	var mid := (MAP_HALF + gap) * 0.5
+	for s in [-1.0, 1.0]:
+		if along_x:
+			_add_strip(_city, s * mid, lf, seg, width, y, mat)
+		else:
+			_add_strip(_city, lf, s * mid, width, seg, y, mat)
+
+func _add_lake() -> void:
+	# Pileta completa: una losa bajo el agua y cuatro muros bajos alrededor. La
+	# losa tapa el suelo/calles que pasan debajo; los muros hacen que el lago no
+	# parezca un disco flotante y frenan cuerpos físicos que lleguen al borde.
+	var basin := Node3D.new()
+	basin.name = "LakeBasin"
+	_city.add_child(basin)
+
+	var concrete := _make_mat(Color(0.48, 0.51, 0.54))
+	var rim_mat := _make_mat(Color(0.72, 0.74, 0.75))
+	var floor_mesh := BoxMesh.new()
+	floor_mesh.size = Vector3(
+		BASIN_OUTER_HALF * 2.0,
+		BASIN_FLOOR_HEIGHT,
+		BASIN_OUTER_HALF * 2.0
+	)
+	var floor := MeshInstance3D.new()
+	floor.name = "BasinFloor"
+	floor.mesh = floor_mesh
+	floor.material_override = concrete
+	floor.position.y = Y_BASIN_TOP - BASIN_FLOOR_HEIGHT * 0.5
+	floor.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	basin.add_child(floor)
+
+	# Un solo StaticBody con cuatro cajas: la barrera sigue existiendo aunque un
+	# auto/peatón se vuelva dinámico al acercarse el agujero.
+	var walls_body := StaticBody3D.new()
+	walls_body.name = "BasinWallsCollision"
+	walls_body.collision_layer = 1
+	walls_body.collision_mask = 2
+	basin.add_child(walls_body)
+	var long_wall := BASIN_OUTER_HALF * 2.0
+	_add_basin_wall(
+		basin, walls_body,
+		Vector3(long_wall, BASIN_WALL_HEIGHT, BASIN_WALL_WIDTH),
+		Vector3(0.0, Y_BASIN_TOP + BASIN_WALL_HEIGHT * 0.5, -BASIN_HALF),
+		rim_mat
+	)
+	_add_basin_wall(
+		basin, walls_body,
+		Vector3(long_wall, BASIN_WALL_HEIGHT, BASIN_WALL_WIDTH),
+		Vector3(0.0, Y_BASIN_TOP + BASIN_WALL_HEIGHT * 0.5, BASIN_HALF),
+		rim_mat
+	)
+	_add_basin_wall(
+		basin, walls_body,
+		Vector3(BASIN_WALL_WIDTH, BASIN_WALL_HEIGHT, BASIN_HALF * 2.0),
+		Vector3(-BASIN_HALF, Y_BASIN_TOP + BASIN_WALL_HEIGHT * 0.5, 0.0),
+		rim_mat
+	)
+	_add_basin_wall(
+		basin, walls_body,
+		Vector3(BASIN_WALL_WIDTH, BASIN_WALL_HEIGHT, BASIN_HALF * 2.0),
+		Vector3(BASIN_HALF, Y_BASIN_TOP + BASIN_WALL_HEIGHT * 0.5, 0.0),
+		rim_mat
+	)
+
+	# Disco de agua con ondas, brillo y espuma procedural. La textura se calcula
+	# en coordenadas globales para que no se deforme por el UV radial del cilindro.
+	var m := CylinderMesh.new()
+	m.top_radius = LAKE_RADIUS
+	m.bottom_radius = LAKE_RADIUS
+	m.height = 0.02
+	m.radial_segments = 48
+	m.rings = 1
+	m.cap_bottom = false  # nadie ve la cara de abajo
+	var mi := MeshInstance3D.new()
+	mi.name = "Lake"
+	mi.mesh = m
+	mi.material_override = _make_water_mat()
+	mi.position = Vector3(0.0, Y_WATER, 0.0)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	basin.add_child(mi)
+
+func _add_basin_wall(parent: Node3D, body: StaticBody3D, size: Vector3, pos: Vector3, mat: Material) -> void:
+	var wall_mesh := BoxMesh.new()
+	wall_mesh.size = size
+	var wall := MeshInstance3D.new()
+	wall.mesh = wall_mesh
+	wall.material_override = mat
+	wall.position = pos
+	parent.add_child(wall)
+	var shape := BoxShape3D.new()
+	shape.size = size
+	var collider := CollisionShape3D.new()
+	collider.shape = shape
+	collider.position = pos
+	body.add_child(collider)
 
 func _add_strip(parent: Node, cx: float, cz: float, sx: float, sz: float, y: float, mat: Material) -> void:
 	var mi := MeshInstance3D.new()
@@ -637,15 +1093,25 @@ func _build_shared_assets() -> void:
 	_ped_head_mesh = SphereMesh.new()
 	_ped_head_mesh.radius = 0.07
 	_ped_head_mesh.height = 0.14
+	_ped_limb_mesh = BoxMesh.new()
+	_ped_limb_mesh.size = Vector3(0.045, LIMB_LEN, 0.045)
 	for c in SHIRT_COLORS:
 		_shirt_mats.append(_make_mat(c))
 	_skin_mat = _make_mat(Color(0.94, 0.76, 0.62))
+	_pants_mat = _make_mat(Color(0.24, 0.27, 0.36))
 	_grass_mat = _make_ground_mat(Color(0.38, 0.62, 0.32))
 
 func _make_ground_mat(color: Color) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = GROUND_SHADER
 	m.set_shader_parameter("base_color", color)
+	return m
+
+func _make_water_mat() -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = WATER_SHADER
+	m.set_shader_parameter("lake_half_extents", LAKE_HALF_EXTENTS)
+	m.set_shader_parameter("corner_radius", 1.8)
 	return m
 
 func _make_mat(color: Color) -> StandardMaterial3D:
@@ -655,8 +1121,10 @@ func _make_mat(color: Color) -> StandardMaterial3D:
 	return m
 
 func _pick_parks() -> void:
-	# 4 manzanas al azar (de 16) son parques: solo naturaleza, sin edificios.
-	while _park_blocks.size() < 4:
+	# Un cuarto de las manzanas son parques: solo naturaleza, sin edificios. La
+	# proporción se mantiene aunque cambie el tamaño del mapa.
+	var total := BLOCK_CENTERS.size() * BLOCK_CENTERS.size()
+	while _park_blocks.size() < total / 4:
 		_park_blocks[Vector2i(randi() % BLOCK_CENTERS.size(), randi() % BLOCK_CENTERS.size())] = true
 
 func _populate_blocks() -> void:
@@ -665,6 +1133,11 @@ func _populate_blocks() -> void:
 		for iz in BLOCK_CENTERS.size():
 			var bx := float(BLOCK_CENTERS[ix])
 			var bz := float(BLOCK_CENTERS[iz])
+			# Las manzanas que quedaron bajo el lago no se llenan. El césped y el
+			# asfalto se dibujan igual pero el agua los tapa; lo que hay que
+			# evitar es plantar árboles y edificios flotando en el medio del agua.
+			if Vector2(bx, bz).length() < LAKE_RADIUS + BLOCK_HALF:
+				continue
 			if _park_blocks.has(Vector2i(ix, iz)):
 				_spawn_park(bx, bz)
 			else:
@@ -684,10 +1157,22 @@ func _find_spot(bx: float, bz: float, spread: float, footprint: float) -> Vector
 	return Vector3.INF  # sin lugar: el llamador saltea este objeto
 
 func _is_free(x: float, z: float, r: float) -> bool:
+	# La pileta ocupa un cuadrado, no sólo el disco de agua: tampoco plantar
+	# props en las esquinas secas de la losa ni encajados dentro de sus muros.
+	if _inside_basin(x, z, r):
+		return false
 	for p in _placed:
 		if Vector2(x - p.x, z - p.y).length() < r + p.z:
 			return false
 	return true
+
+func _inside_basin(x: float, z: float, padding: float = 0.0) -> bool:
+	var center := _lake_center_xz()
+	var half := BASIN_HALF_EXTENTS + Vector2.ONE * maxf(padding, 0.0)
+	return absf(x - center.x) < half.x and absf(z - center.y) < half.y
+
+func _lake_center_xz() -> Vector2:
+	return Vector2(lake_root.global_position.x, lake_root.global_position.z)
 
 func _spawn_park(bx: float, bz: float) -> void:
 	# Césped + árboles + arbustos/rocas/flores. Comida chica y mediana.
@@ -705,16 +1190,12 @@ func _spawn_park(bx: float, bz: float) -> void:
 
 func _spawn_building_block(bx: float, bz: float) -> void:
 	# 1-3 edificios (a veces rascacielos) + props urbanos chicos.
+	# Los edificios salen de la biblioteca de escenas: el tamaño, la XP, la
+	# paleta y los pedazos vienen de cada prop, no se deciden acá.
 	for _k in range(randi_range(1, 3)):
 		var sky := randf() < 0.22
-		var foot := randf_range(3.4, 4.8) if sky else randf_range(2.4, 4.0)
-		var pos := _find_spot(bx, bz, 3.0, foot)
-		if pos == Vector3.INF:
-			continue
-		var model: String = SKYSCRAPERS.pick_random() if sky else BUILDINGS_LOW.pick_random()
-		var b := _spawn_model_swallowable(model, pos, foot, 0.0, XP_SKYSCRAPER if sky else XP_BUILDING)
-		b.sfx_kind = Sfx.Kind.HEAVY if sky else Sfx.Kind.DEBRIS
-		b.break_pieces = PIECES_SKYSCRAPER if sky else PIECES_BUILDING
+		var lista: Array = SKYSCRAPERS if sky else BUILDINGS_LOW
+		_spawn_prop(lista.pick_random(), bx, bz, 3.0)
 	for _k in range(randi_range(2, 4)):
 		var foot := randf_range(0.5, 0.9)
 		var pos := _find_spot(bx, bz, BLOCK_HALF, foot)
@@ -740,17 +1221,42 @@ func _spawn_cars_on_roads() -> void:
 			_spawn_car(Vector3(x, 0.0, lf + lane2), Vector3(dir_x, 0.0, 0.0))
 
 func _spawn_car(pos: Vector3, dir: Vector3) -> void:
-	if Vector2(pos.x, pos.z).length() < START_CLEAR + 2.0:
+	if Vector2(pos.x - _start_position.x, pos.z - _start_position.z).length() < START_CLEAR + 2.0:
 		return  # no arrancar con un auto encima del agujero
+	# Nada de autos dentro del cubículo, ni siquiera en las esquinas que quedan
+	# afuera del disco circular de agua. El margen contempla su ancho completo.
+	if _inside_basin(pos.x, pos.z, 1.5):
+		return
 	var rot := atan2(dir.x, dir.z)  # mirar hacia la dirección de marcha
 	var car := _spawn_model_swallowable(CARS.pick_random(), pos, randf_range(1.5, 1.9), rot, XP_CAR)
 	car.sfx_kind = Sfx.Kind.CAR
-	car.start_driving(dir, randf_range(2.5, 4.5), MAP_HALF, hole)
+	car.set_forbidden_rect(_lake_center_xz(), BASIN_HALF_EXTENTS)
+	car.start_driving(dir, randf_range(2.5, 4.5), MAP_HALF, hole, ROAD_LINES)
+
+func _spawn_car_from_edge() -> void:
+	# Entra desde un borde, en el sentido correcto del carril. Asi un auto nuevo
+	# no aparece de golpe en el centro de la camara.
+	var line := float(ROAD_LINES.pick_random())
+	var lane := 1.25 * (1.0 if randf() < 0.5 else -1.0)
+	if randf() < 0.5:
+		var dir_z := -1.0 if lane > 0.0 else 1.0
+		var z := MAP_HALF - 1.0 if dir_z < 0.0 else -MAP_HALF + 1.0
+		_spawn_car(Vector3(line + lane, 0.0, z), Vector3(0.0, 0.0, dir_z))
+	else:
+		var dir_x := 1.0 if lane > 0.0 else -1.0
+		var x := -MAP_HALF + 1.0 if dir_x > 0.0 else MAP_HALF - 1.0
+		_spawn_car(Vector3(x, 0.0, line + lane), Vector3(dir_x, 0.0, 0.0))
 
 func _spawn_pedestrians() -> void:
 	# Peatones por las veredas: comida mínima, móvil, que huye del agujero.
 	var spawned := 0
-	while spawned < 32:
+	var intentos := 0
+	# Escalan con el área del mapa para no quedar perdidos en una ciudad 4 veces
+	# más grande. El tope de intentos es por si el lago tapa demasiadas veredas:
+	# sin él, un mapa con poco lugar libre colgaría el while para siempre.
+	var cuantos := 32 * int(pow(MAP_HALF / 36.0, 2.0))
+	while spawned < cuantos and intentos < cuantos * 20:
+		intentos += 1
 		var line := float(ROAD_LINES.pick_random())
 		var side := (ROAD_W * 0.5 + SIDE_W * 0.5) * (1.0 if randf() < 0.5 else -1.0)
 		var along := randf_range(-MAP_HALF + 2.0, MAP_HALF - 2.0)
@@ -762,8 +1268,10 @@ func _spawn_pedestrians() -> void:
 		else:
 			pos = Vector3(along, 0.0, line + side)  # vereda de una calle E-O
 			dir = Vector3(1.0 if randf() < 0.5 else -1.0, 0.0, 0.0)
-		if Vector2(pos.x, pos.z).length() < START_CLEAR + 1.0:
-			continue  # centro despejado (arranca el agujero)
+		if Vector2(pos.x - _start_position.x, pos.z - _start_position.z).length() < START_CLEAR + 1.0:
+			continue  # despejado alrededor del arranque del agujero
+		if _inside_basin(pos.x, pos.z, 0.35):
+			continue  # no nacen sobre el agua ni en las esquinas de la pileta
 		_spawn_pedestrian(pos, dir)
 		spawned += 1
 
@@ -775,13 +1283,20 @@ func _spawn_pedestrian(pos: Vector3, dir: Vector3) -> void:
 	var body := MeshInstance3D.new()
 	body.mesh = _ped_body_mesh
 	body.material_override = _shirt_mats.pick_random()
-	body.position.y = 0.20
+	body.position.y = BODY_Y
 	visual.add_child(body)
 	var head := MeshInstance3D.new()
 	head.mesh = _ped_head_mesh
 	head.material_override = _skin_mat
-	head.position.y = 0.44
+	head.position.y = HEAD_Y
 	visual.add_child(head)
+	# Brazos y piernas, para que la caminata se vea. Comparten malla y material
+	# entre las ~128 personas, así que no agregan draw calls (sí nodos).
+	var legs: Array[Node3D] = []
+	var arms: Array[Node3D] = []
+	for side in [-1.0, 1.0]:
+		legs.append(_add_limb(visual, Vector3(side * 0.045, HIP_Y, 0.0), _pants_mat))
+		arms.append(_add_limb(visual, Vector3(side * 0.105, SHOULDER_Y, 0.0), _skin_mat))
 	s.swallow_size = 0.35
 	s.xp_value = XP_PEDESTRIAN
 	s.sfx_kind = Sfx.Kind.VOICE
@@ -789,8 +1304,40 @@ func _spawn_pedestrian(pos: Vector3, dir: Vector3) -> void:
 	s.fell_in.connect(_on_object_fell_in)
 	s.position = pos
 	swallowables.add_child(s)
-	s.setup_body(Vector3(0.25, 0.55, 0.25))
+	s.setup_body(Vector3(0.25, PED_HEIGHT, 0.25))
+	s.set_walk_rig(legs, arms)
+	s.set_forbidden_rect(_lake_center_xz(), BASIN_HALF_EXTENTS)
 	s.start_walking(dir, MAP_HALF, hole)
+
+func _spawn_pedestrian_from_edge() -> void:
+	# Igual que los autos: nace en un extremo de una vereda y camina hacia el
+	# interior. Los chequeos de lago no hacen falta en el borde del mapa.
+	var line := float(ROAD_LINES.pick_random())
+	var side := (ROAD_W * 0.5 + SIDE_W * 0.5) * (1.0 if randf() < 0.5 else -1.0)
+	if randf() < 0.5:
+		var dir_z := 1.0 if randf() < 0.5 else -1.0
+		var z := -MAP_HALF + 1.0 if dir_z > 0.0 else MAP_HALF - 1.0
+		_spawn_pedestrian(Vector3(line + side, 0.0, z), Vector3(0.0, 0.0, dir_z))
+	else:
+		var dir_x := 1.0 if randf() < 0.5 else -1.0
+		var x := -MAP_HALF + 1.0 if dir_x > 0.0 else MAP_HALF - 1.0
+		_spawn_pedestrian(Vector3(x, 0.0, line + side), Vector3(dir_x, 0.0, 0.0))
+
+func _add_limb(parent: Node3D, anclaje: Vector3, mat: Material) -> Node3D:
+	# Devuelve un PIVOTE en la cadera/hombro con la malla colgando debajo. El
+	# pivote no es decorativo: la malla tiene el origen en su centro, así que
+	# rotarla directamente haría que la pierna gire desde la rodilla en vez de
+	# desde la cadera.
+	var pivot := Node3D.new()
+	pivot.position = anclaje
+	parent.add_child(pivot)
+	var mi := MeshInstance3D.new()
+	mi.mesh = _ped_limb_mesh
+	mi.material_override = mat
+	mi.position.y = -LIMB_LEN * 0.5
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF  # a este tamaño no aporta
+	pivot.add_child(mi)
+	return pivot
 
 func _spawn_rivals() -> void:
 	# Arrancan lejos del jugador: verse comer al vecino en el segundo uno, sin
@@ -803,7 +1350,10 @@ func _spawn_rivals() -> void:
 		for _try in 30:
 			pos = Vector3(randf_range(-MAP_HALF + 4.0, MAP_HALF - 4.0), 0.0,
 				randf_range(-MAP_HALF + 4.0, MAP_HALF - 4.0))
-			if Vector2(pos.x, pos.z).length() > RIVAL_START_CLEAR:
+			# Lejos del jugador Y fuera del lago: en el agua no tendrían nada que
+			# comer y se quedarían quietos toda la partida.
+			if Vector2(pos.x - _start_position.x, pos.z - _start_position.z).length() > RIVAL_START_CLEAR \
+					and not _inside_basin(pos.x, pos.z, 4.0):
 				break
 		add_child(r)
 		r.global_position = pos
@@ -813,6 +1363,33 @@ func _spawn_rivals() -> void:
 		rivals.append(r)
 	rival_arrows.setup(hole.camera, hole, rivals)
 	leaderboard.setup(hole, rivals, func(): return score)
+
+func _spawn_prop(scene: PackedScene, bx: float, bz: float, spread: float) -> SwallowableRef:
+	# Planta un prop de la biblioteca (scenes/props/). A diferencia de
+	# _spawn_model_swallowable, acá NO se decide nada del objeto: la escena ya
+	# trae su modelo, su ancho, su paleta, su XP y sus pedazos, y se arma sola en
+	# su _ready() vía auto_setup. Lo único que hace main.gd es buscarle lugar,
+	# ubicarlo y engancharlo a las señales de la partida.
+	var s := scene.instantiate() as SwallowableRef
+	if s == null:
+		return null
+	# El ancho se lee ANTES de meterlo al árbol: _find_spot necesita saber cuánto
+	# ocupa para reservar el lugar, y el auto_setup recién corre en el add_child.
+	var pos := _find_spot(bx, bz, spread, s.auto_footprint)
+	if pos == Vector3.INF:
+		s.free()  # no había lugar en la manzana: se descarta sin haber entrado al árbol
+		return null
+	s.consumed.connect(_on_object_consumed)
+	s.fell_in.connect(_on_object_fell_in)
+	s.wants_break.connect(_on_wants_break)
+	s.position = pos
+	s.rotation.y = randf_range(0.0, TAU)
+	# force_readable_name: sin esto los nombres que chocan con un hermano quedan
+	# como "@RigidBody3D@61" (la vía rápida de add_child) en vez de "BuildingC2",
+	# y en el árbol remoto del depurador no se entiende qué es cada cosa. La vía
+	# lenta cuesta, pero son ~27 edificios por partida: no se nota.
+	swallowables.add_child(s, true)  # acá corre su _ready(): se mide y arma su cuerpo
+	return s
 
 func _spawn_model_swallowable(model_path: String, pos: Vector3, target_footprint: float, rot_y: float = 0.0, xp: int = 1) -> SwallowableRef:
 	# Crea un swallowable con un modelo .glb. El swallow_size y la colisión se

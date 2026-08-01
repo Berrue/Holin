@@ -16,8 +16,14 @@ extends Node3D
 const SwallowableRef = preload("res://scripts/swallowable.gd")
 const JoystickRef = preload("res://scripts/virtual_joystick.gd")
 
+@export_group("Movimiento")
 @export var move_speed: float = 8.0
-@export var acceleration: float = 24.0    # unidades/s²: qué tan rápido alcanza move_speed
+@export var acceleration: float = 52.0       # salida: alcanza la velocidad base en ~0.15 s
+@export var turn_acceleration: float = 72.0  # correcciones y contramarcha responden antes
+@export var deceleration: float = 36.0       # conserva una cola breve al soltar, sin patinar
+@export_range(0.0, 0.5, 0.01) var max_speed_growth_bonus: float = 0.22
+
+@export_group("Cámara e impacto")
 @export var radius: float = 1.0           # radio actual del agujero
 @export var camera_zoom_speed: float = 3.0  # suavizado del alejamiento de cámara
 @export var camera_zoom_factor: float = 0.15 # 1.0 = alejamiento proporcional al radio; menos = más cerca
@@ -25,17 +31,21 @@ const JoystickRef = preload("res://scripts/virtual_joystick.gd")
 @export var shake_decay: float = 7.0      # qué tan rápido se apaga (mayor = más seco)
 
 # Progresión escalonada: radio por nivel y XP acumulada requerida.
+@export_group("Progresión")
 @export var level_radii: Array[float] = [1.0, 1.5, 2.2, 3.2, 4.4, 5.8, 7.4, 9.2]
 @export var level_xp_req: Array[int] = [0, 25, 70, 150, 300, 520, 820, 1200]
 
 const SHAFT_DEPTH := 9.0        # alto de las paredes del pozo (debe coincidir con el shader)
 const SHAFT_TAPER := 0.78       # el pozo se afina hacia el fondo (idem malla visual)
-const GROUND_OUTER := 160.0     # radio del anillo de suelo: tapa todo el mapa desde donde esté
+# Radio del anillo de suelo que viaja con el agujero. Tiene que alcanzar la
+# esquina más lejana del mapa desde cualquier posición: con MAP_HALF 72 la
+# diagonal completa es ~204, así que 220 cubre el peor caso. No cuesta más
+# triángulos (son GROUND_SEGMENTS fijos), sólo un anillo más ancho.
+const GROUND_OUTER := 220.0
 const GROUND_SEGMENTS := 40
 const SHAPE_EPSILON := 0.05     # cuánto tiene que cambiar el radio para rehacer la colisión
 const WAKE_FACTOR := 2.3        # radio de "despertar" objetos, en radios de agujero
 const WAKE_EXTRA := 1.8
-const FIT_MARGIN := 1.02        # tolerancia de tamaño para dejar suelto un objeto
 const DUST_AMOUNT := 34         # partículas por estallido, a golpe máximo
 # Varios emisores en round-robin: uno solo se pisaría a sí mismo. Con el agujero
 # grande caen tres edificios casi juntos y restart() le cortaría el polvo al
@@ -55,6 +65,11 @@ var _cam_anchor: Vector3                   # posición de cámara sin temblor
 var _shake := 0.0                          # amplitud actual del temblor (decae sola)
 var _rim_pulse := 0.0                      # deformación del borde al recibir un golpe
 var _rim_tween: Tween
+var _fit_preview := 0.0                    # aviso suave: el objeto cercano sí entra
+var _fit_preview_target := 0.0
+var _blocked_preview := 0.0                # aviso cálido: todavía es demasiado grande
+var _blocked_preview_target := 0.0
+var _rim_material: StandardMaterial3D
 var _dust: Array[GPUParticles3D] = []
 var _dust_next := 0
 var _motes: GPUParticles3D
@@ -72,10 +87,14 @@ signal swallowed(xp_gained: int, total_xp: int)
 signal leveled_up(new_level: int)
 
 func _ready() -> void:
+	# Un swallowable armado a mano (auto_setup en swallowable.gd) se busca el
+	# agujero solo por acá en vez de que main.gd se lo tenga que inyectar.
+	add_to_group("hole")
 	radius = level_radii[0]
 	_base_radius = radius
 	_base_camera_offset = camera.position
 	_cam_anchor = camera.position
+	_prepare_rim_material()
 	_build_motes()
 	_apply_radius()
 	_build_dust()
@@ -85,12 +104,62 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	var dir := _get_move_direction()
-	# Acelerar hacia la velocidad objetivo (también frena suave al soltar).
-	_velocity = _velocity.move_toward(dir * move_speed, acceleration * delta)
+	_update_velocity(dir, delta)
 	global_position += Vector3(_velocity.x, 0.0, _velocity.y) * delta
 	_publish_hole_uniforms()
 	_update_camera(delta)
+	_fit_preview_target = 0.0
+	_blocked_preview_target = 0.0
 	_check_swallow()
+	_update_rim_preview(delta)
+
+func _update_velocity(dir: Vector2, delta: float) -> void:
+	# Separar salida, giro y frenada hace que el agujero obedezca enseguida sin
+	# perder por completo la inercia al levantar el dedo. La magnitud analógica
+	# del joystick sigue definiendo la velocidad objetivo.
+	var target := dir * _current_move_speed()
+	var response := acceleration
+	if dir.is_zero_approx():
+		response = deceleration
+	elif not _velocity.is_zero_approx():
+		# Cuanto más brusco el cambio de rumbo, más autoridad recibe el giro.
+		# En línea recta conserva `acceleration`; a 180° usa `turn_acceleration`.
+		var alignment := _velocity.normalized().dot(dir.normalized())
+		var turn_amount := clampf((1.0 - alignment) * 0.5, 0.0, 1.0)
+		response = lerpf(acceleration, turn_acceleration, turn_amount)
+	_velocity = _velocity.move_toward(target, response * delta)
+
+func _current_move_speed() -> float:
+	# La cámara se aleja al crecer. Una compensación moderada evita que el agujero
+	# grande parezca más lento en pantalla, pero mantiene el mapa y las decisiones
+	# de recorrido relevantes. El bonus llega gradualmente con el tween de radio.
+	if level_radii.size() < 2:
+		return move_speed
+	var growth := clampf(inverse_lerp(level_radii[0], level_radii[-1], radius), 0.0, 1.0)
+	return move_speed * lerpf(1.0, 1.0 + max_speed_growth_bonus, growth)
+
+func preview_fit(strength: float) -> void:
+	_fit_preview_target = maxf(_fit_preview_target, clampf(strength, 0.0, 1.0))
+
+func preview_blocked(strength: float) -> void:
+	_blocked_preview_target = maxf(_blocked_preview_target, clampf(strength, 0.0, 1.0))
+
+func _update_rim_preview(delta: float) -> void:
+	# Entra rápido para que se lea al apuntar y sale más despacio para que no
+	# parpadee cuando una esquina del objeto roza el límite de detección.
+	var fit_speed := 16.0 if _fit_preview_target > _fit_preview else 8.0
+	var blocked_speed := 18.0 if _blocked_preview_target > _blocked_preview else 10.0
+	_fit_preview = lerpf(_fit_preview, _fit_preview_target, 1.0 - exp(-fit_speed * delta))
+	_blocked_preview = lerpf(_blocked_preview, _blocked_preview_target,
+		1.0 - exp(-blocked_speed * delta))
+	_apply_rim()
+
+func _prepare_rim_material() -> void:
+	var source := rim.mesh.surface_get_material(0) as StandardMaterial3D
+	_rim_material = source.duplicate() as StandardMaterial3D
+	_rim_material.emission_enabled = true
+	_rim_material.emission_energy_multiplier = 0.0
+	rim.material_override = _rim_material
 
 func _publish_hole_uniforms() -> void:
 	# El piso recorta su propio agujero en el shader: necesita saber dónde está.
@@ -314,16 +383,21 @@ func _input(event: InputEvent) -> void:
 func _check_swallow() -> void:
 	# Acá no se traga nada: sólo se avisa. Lo que entra por tamaño se suelta como
 	# cuerpo dinámico y la física resuelve el resto; lo que no entra, tiembla.
+	# La prueba usa el radio real de la base del cuerpo contra el radio de la boca:
+	# comparar ancho contra radio hacía temblar objetos que visualmente cabían.
 	for body in detection_area.get_overlapping_bodies():
 		var obj := body as SwallowableRef
 		if obj == null:
 			continue
-		var sw := obj.swallow_size
 		var dist := Vector2(global_position.x - obj.global_position.x,
 			global_position.z - obj.global_position.z).length()
-		if sw <= radius * FIT_MARGIN:
+		if obj.fits_hole(radius):
 			obj.hole_nearby(self, dist)
-		elif dist < radius + sw * 0.5:
+		elif dist < radius + obj.footprint_radius:
+			var overlap := clampf(
+				(radius + obj.footprint_radius - dist) / maxf(obj.footprint_radius, 0.05),
+				0.0, 1.0)
+			preview_blocked(overlap)
 			obj.wobble()  # feedback "todavía no podés"
 
 func debug_step_level(step: int) -> void:
@@ -349,9 +423,39 @@ func gain_xp(amount: int) -> void:
 
 func _animate_grow(target_r: float) -> void:
 	# Crecimiento escalonado con overshoot (pop elástico).
+	if target_r > radius:
+		_spawn_growth_wave(radius, target_r)
 	var t := create_tween()
 	t.tween_method(_set_radius, radius, target_r, 0.5) \
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+func _spawn_growth_wave(from_radius: float, to_radius: float) -> void:
+	# Un halo físico recorre exactamente el tamaño recién desbloqueado. Al quedar
+	# en el mundo y no en el HUD, conecta el cartel de nivel con la boca real.
+	var mesh := TorusMesh.new()
+	mesh.inner_radius = 0.92
+	mesh.outer_radius = 1.0
+	mesh.rings = 48
+	mesh.ring_segments = 6
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.38, 1.0, 0.58, 0.88)
+	mat.emission_enabled = true
+	mat.emission = Color(0.30, 1.0, 0.52)
+	mat.emission_energy_multiplier = 2.2
+	mesh.material = mat
+	var wave := MeshInstance3D.new()
+	wave.mesh = mesh
+	wave.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	wave.position.y = 0.06
+	wave.scale = Vector3(from_radius, 0.32, from_radius)
+	add_child(wave)
+	var t := create_tween().set_parallel(true)
+	t.tween_property(wave, "scale", Vector3(to_radius * 1.06, 0.18, to_radius * 1.06), 0.62) \
+		.set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	t.tween_property(wave, "transparency", 1.0, 0.62).set_ease(Tween.EASE_IN)
+	t.chain().tween_callback(wave.queue_free)
 
 func _set_radius(r: float) -> void:
 	radius = r
@@ -381,8 +485,20 @@ func _apply_rim() -> void:
 	# Separado de _apply_radius() a propósito: el tween del pulso corre a 60 fps y
 	# desde ahí adentro estaría reescribiendo la forma de colisión en cada frame
 	# al pedo, cuando el radio real no cambió.
-	var s := 1.0 + _rim_pulse
-	rim.scale = Vector3(radius * s, (0.6 + radius * 0.3) * (1.0 - _rim_pulse * 0.5), radius * s)
+	var feedback_scale := _fit_preview * 0.018 - _blocked_preview * 0.008
+	var s := 1.0 + _rim_pulse + feedback_scale
+	rim.scale = Vector3(radius * s,
+		(0.6 + radius * 0.3) * (1.0 - _rim_pulse * 0.5 + _blocked_preview * 0.035),
+		radius * s)
+	if _rim_material != null:
+		var base := Color(0.18, 0.17, 0.21)
+		var blocked_color := Color(0.78, 0.30, 0.16)
+		# Un objeto compatible se comunica con inclinación + respiración del borde,
+		# no con color. El tono cálido queda reservado para "todavía no entra".
+		var color := base.lerp(blocked_color, _blocked_preview * 0.42)
+		_rim_material.albedo_color = color
+		_rim_material.emission = color
+		_rim_material.emission_energy_multiplier = _blocked_preview * 0.42
 
 func _rebuild_ground_shape() -> void:
 	# Anillo de piso (de radius a GROUND_OUTER) + pared cónica del pozo colgando

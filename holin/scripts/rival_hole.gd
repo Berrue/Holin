@@ -23,7 +23,6 @@ const SwallowableRef = preload("res://scripts/swallowable.gd")
 
 const RETARGET_SECS := 0.5   # cada cuánto rehace la búsqueda de presa
 const EAT_FRACTION := 0.82   # qué tan adentro del disco tiene que estar para caer
-const FIT_MARGIN := 1.02     # misma tolerancia de tamaño que usa el jugador
 const ACCEL := 20.0
 const TAG_HEIGHT := 1.6
 ## Compensa una ventaja que el rival tiene por cómo está hecho: su succión es un
@@ -172,7 +171,7 @@ func _pick_target() -> void:
 		if not c.is_in_group("swallowable"):
 			continue
 		var obj := c as SwallowableRef
-		if obj.swallow_size > radius * FIT_MARGIN:
+		if not obj.fits_hole(radius):
 			continue
 		var d := global_position.distance_to(obj.global_position)
 		var v := float(obj.xp_value) / (d + 3.0)
@@ -187,7 +186,7 @@ func _eat_step(delta: float) -> void:
 		return
 	for body in _area.get_overlapping_bodies():
 		var obj := body as SwallowableRef
-		if obj == null or obj.swallow_size > radius * FIT_MARGIN:
+		if obj == null or not obj.fits_hole(radius):
 			continue
 		var d := Vector2(global_position.x - obj.global_position.x,
 			global_position.z - obj.global_position.z).length()

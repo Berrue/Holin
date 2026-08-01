@@ -1,0 +1,12 @@
+[gd_resource type="StandardMaterial3D" load_steps=2 format=3 uid="uid://b0pal0varib001"]
+
+; Variación B del pack Kenney: el MISMO atlas 512x512 con otros colores en los
+; slots de fachada. Repinta cualquier modelo de la ciudad sin tocar sus UV.
+; Ver el comentario de city_palette_base.tres sobre por qué esto es un archivo.
+
+[ext_resource type="Texture2D" path="res://assets/kenney_city/variation-b.png" id="1_tex"]
+
+[resource]
+resource_name = "Ciudad — variación B"
+albedo_texture = ExtResource("1_tex")
+roughness = 1.0

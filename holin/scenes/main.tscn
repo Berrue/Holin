@@ -1,20 +1,53 @@
-[gd_scene load_steps=17 format=3 uid="uid://b0main0fase001"]
+[gd_scene format=3 uid="uid://bm5gs5micdvnk"]
 
-[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
-[ext_resource type="PackedScene" path="res://scenes/hole.tscn" id="2_hole"]
-[ext_resource type="PackedScene" path="res://scenes/swallowable.tscn" id="3_swl"]
-[ext_resource type="AudioStream" path="res://assets/audio/theme.wav" id="4_theme"]
-[ext_resource type="Script" path="res://scripts/virtual_joystick.gd" id="5_joy"]
-[ext_resource type="Script" path="res://scripts/rival_arrows.gd" id="6_arrows"]
-[ext_resource type="Script" path="res://scripts/leaderboard.gd" id="7_board"]
-[ext_resource type="Script" path="res://scripts/perf_overlay.gd" id="8_perf"]
+[ext_resource type="Script" uid="uid://dv08tw1m0eol" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="PackedScene" uid="uid://bikjj5micdvnk" path="res://scenes/hole.tscn" id="2_hole"]
+[ext_resource type="PackedScene" uid="uid://btsj5kh0wyvnk" path="res://scenes/swallowable.tscn" id="3_swl"]
+[ext_resource type="AudioStream" uid="uid://dxl1ems55x1vu" path="res://assets/audio/theme.wav" id="4_theme"]
+[ext_resource type="Script" uid="uid://dwvg3mo24wpd8" path="res://scripts/virtual_joystick.gd" id="5_joy"]
+[ext_resource type="Script" uid="uid://c6l2uu0w6xt32" path="res://scripts/rival_arrows.gd" id="6_arrows"]
+[ext_resource type="Script" uid="uid://sq76kgrvbjp" path="res://scripts/leaderboard.gd" id="7_board"]
+[ext_resource type="Script" uid="uid://dnj3sqrbo50ul" path="res://scripts/perf_overlay.gd" id="8_perf"]
+[ext_resource type="Script" path="res://scripts/traffic_spawner.gd" id="8_traffic"]
+[ext_resource type="Shader" uid="uid://c7xx0jmujy1b1" path="res://shaders/ground_hole.gdshader" id="9_ground_shader"]
+[ext_resource type="Shader" uid="uid://7ukmagrcg1ym" path="res://shaders/water.gdshader" id="10_water_shader"]
+[ext_resource type="PackedScene" uid="uid://b0prpbldga001" path="res://scenes/props/building_a.tscn" id="11_blda"]
+[ext_resource type="PackedScene" uid="uid://b0prpbldgb001" path="res://scenes/props/building_b.tscn" id="12_bldb"]
+[ext_resource type="PackedScene" uid="uid://b0prpbldgc001" path="res://scenes/props/building_c.tscn" id="13_bldc"]
+[ext_resource type="PackedScene" uid="uid://b0prpbldgd001" path="res://scenes/props/building_d.tscn" id="14_bldd"]
+[ext_resource type="PackedScene" uid="uid://b0prpbldge001" path="res://scenes/props/building_e.tscn" id="15_blde"]
+[ext_resource type="PackedScene" uid="uid://b0prpbldgf001" path="res://scenes/props/building_f.tscn" id="16_bldf"]
+[ext_resource type="PackedScene" uid="uid://b0prpbldgh001" path="res://scenes/props/building_h.tscn" id="18_bldh"]
+[ext_resource type="PackedScene" uid="uid://b0prpbldgj001" path="res://scenes/props/building_j.tscn" id="20_bldj"]
+[ext_resource type="PackedScene" uid="uid://b0prpbldgl001" path="res://scenes/props/building_l.tscn" id="22_bldl"]
+[ext_resource type="PackedScene" uid="uid://b0prpbldgn001" path="res://scenes/props/building_n.tscn" id="24_bldn"]
+[ext_resource type="PackedScene" uid="uid://b0prpskya0001" path="res://scenes/props/skyscraper_a.tscn" id="25_skya"]
+[ext_resource type="PackedScene" uid="uid://b0prpskyb0001" path="res://scenes/props/skyscraper_b.tscn" id="26_skyb"]
+[ext_resource type="PackedScene" uid="uid://b0prpskyc0001" path="res://scenes/props/skyscraper_c.tscn" id="27_skyc"]
+[ext_resource type="PackedScene" uid="uid://cnat1qom4e6hf" path="res://assets/kenney_city/building-a.glb" id="28_fv21b"]
+[ext_resource type="PackedScene" uid="uid://b0prpskyd0001" path="res://scenes/props/skyscraper_d.tscn" id="28_skyd"]
+[ext_resource type="PackedScene" uid="uid://b0prpskye0001" path="res://scenes/props/skyscraper_e.tscn" id="29_skye"]
+[ext_resource type="PackedScene" uid="uid://drwdjcxlmmumq" path="res://assets/kenney_city/building-c.glb" id="29_tel4y"]
+[ext_resource type="PackedScene" uid="uid://dauiphwfwqnq" path="res://assets/kenney_city/building-skyscraper-b.glb" id="30_qkpxi"]
+[ext_resource type="PackedScene" path="res://scenes/props/tree_default.tscn" id="30_tree_default"]
+[ext_resource type="PackedScene" path="res://scenes/props/tree_oak.tscn" id="31_tree_oak"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
-bg_color = Color(0.13, 0.14, 0.18, 0.96)
-corner_radius_top_left = 16
-corner_radius_top_right = 16
-corner_radius_bottom_right = 16
-corner_radius_bottom_left = 16
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ground"]
+render_priority = 0
+shader = ExtResource("9_ground_shader")
+shader_parameter/base_color = Color(0.58, 0.62, 0.55, 1)
+shader_parameter/rim_darkness = 0.72
+shader_parameter/rim_width = 0.32
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
+size = Vector2(160, 160)
+
+[sub_resource type="Environment" id="Environment_main"]
+background_mode = 1
+background_color = Color(0.45, 0.62, 0.78, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.55, 0.58, 0.62, 1)
+ambient_light_energy = 0.6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hud"]
 content_margin_left = 16.0
@@ -73,91 +106,219 @@ corner_radius_bottom_left = 26
 shadow_color = Color(0, 0, 0, 0.35)
 shadow_size = 10
 
-[sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
-size = Vector2(80, 80)
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.13, 0.14, 0.18, 0.96)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
 
-[sub_resource type="Environment" id="Environment_main"]
-background_mode = 1
-background_color = Color(0.45, 0.62, 0.78, 1)
-ambient_light_source = 2
-ambient_light_color = Color(0.55, 0.58, 0.62, 1)
-ambient_light_energy = 0.6
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_sidewalk"]
+render_priority = 0
+shader = ExtResource("9_ground_shader")
+shader_parameter/base_color = Color(0.72, 0.72, 0.7, 1)
+shader_parameter/rim_darkness = 0.72
+shader_parameter/rim_width = 0.32
 
-[node name="Main" type="Node3D"]
+[sub_resource type="BoxMesh" id="BoxMesh_city_unit"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_asphalt"]
+render_priority = 0
+shader = ExtResource("9_ground_shader")
+shader_parameter/base_color = Color(0.16, 0.16, 0.19, 1)
+shader_parameter/rim_darkness = 0.72
+shader_parameter/rim_width = 0.32
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_line"]
+render_priority = 0
+shader = ExtResource("9_ground_shader")
+shader_parameter/base_color = Color(0.92, 0.8, 0.22, 1)
+shader_parameter/rim_darkness = 0.72
+shader_parameter/rim_width = 0.32
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_lake_basin"]
+render_priority = 0
+shader = ExtResource("9_ground_shader")
+shader_parameter/base_color = Color(0.44, 0.48, 0.52, 1)
+shader_parameter/rim_darkness = 0.72
+shader_parameter/rim_width = 0.32
+
+[sub_resource type="BoxMesh" id="BoxMesh_lake_basin"]
+size = Vector3(7, 0.24, 6)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_water"]
+render_priority = 0
+shader = ExtResource("10_water_shader")
+shader_parameter/deep_color = Color(0.055, 0.24, 0.42, 1)
+shader_parameter/surface_color = Color(0.16, 0.55, 0.75, 1)
+shader_parameter/crest_color = Color(0.66, 0.91, 0.96, 1)
+shader_parameter/foam_color = Color(0.88, 0.98, 1, 1)
+shader_parameter/lake_half_extents = Vector2(3, 2.5)
+shader_parameter/corner_radius = 1.0
+shader_parameter/wave_scale = 0.72
+shader_parameter/wave_speed = 0.55
+
+[sub_resource type="BoxMesh" id="BoxMesh_lake_water"]
+size = Vector3(6, 0.035, 5)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_plaza_water"]
+render_priority = 0
+shader = ExtResource("10_water_shader")
+shader_parameter/deep_color = Color(0.055, 0.24, 0.42, 1)
+shader_parameter/surface_color = Color(0.16, 0.55, 0.75, 1)
+shader_parameter/crest_color = Color(0.66, 0.91, 0.96, 1)
+shader_parameter/foam_color = Color(0.88, 0.98, 1, 1)
+shader_parameter/lake_half_extents = Vector2(2, 1.5)
+shader_parameter/corner_radius = 0.7
+shader_parameter/wave_scale = 0.72
+shader_parameter/wave_speed = 0.55
+
+[sub_resource type="BoxMesh" id="BoxMesh_plaza_basin"]
+size = Vector3(4.8, 0.2, 3.8)
+
+[sub_resource type="BoxMesh" id="BoxMesh_plaza_water"]
+size = Vector3(4, 0.035, 3)
+
+[sub_resource type="BoxMesh" id="BoxMesh_plaza_rim_long"]
+size = Vector3(4.8, 0.3, 0.4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_plaza_rim_short"]
+size = Vector3(0.4, 0.3, 3)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rim"]
+albedo_color = Color(0.76, 0.78, 0.79, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_lake_rim_long"]
+size = Vector3(7, 0.55, 0.5)
+
+[sub_resource type="BoxMesh" id="BoxMesh_lake_rim_short"]
+size = Vector3(0.5, 0.55, 5)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_lake_rim_long"]
+size = Vector3(7, 0.55, 0.5)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_lake_rim_short"]
+size = Vector3(0.5, 0.55, 5)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_grass"]
+render_priority = 0
+shader = ExtResource("9_ground_shader")
+shader_parameter/base_color = Color(0.38, 0.62, 0.32, 1)
+shader_parameter/rim_darkness = 0.72
+shader_parameter/rim_width = 0.32
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_monument"]
+albedo_color = Color(0.18, 0.2, 0.25, 1)
+metallic = 0.25
+roughness = 0.55
+
+[sub_resource type="SphereMesh" id="SphereMesh_plaza_orb"]
+radius = 1.25
+height = 2.5
+radial_segments = 24
+rings = 12
+
+[node name="Main" type="Node3D" unique_id=383689079]
 script = ExtResource("1_main")
 swallowable_scene = ExtResource("3_swl")
 
-[node name="Ground" type="MeshInstance3D" parent="."]
+[node name="Ground" type="MeshInstance3D" parent="." unique_id=649361719]
+material_override = SubResource("ShaderMaterial_ground")
 cast_shadow = 0
 mesh = SubResource("PlaneMesh_ground")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=322219467]
 light_energy = 1.15
 shadow_enabled = true
 shadow_normal_bias = 1.0
 directional_shadow_mode = 1
 directional_shadow_max_distance = 70.0
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=759945236]
 environment = SubResource("Environment_main")
 
-[node name="Hole" parent="." instance=ExtResource("2_hole")]
+[node name="Hole" parent="." unique_id=1579563345 instance=ExtResource("2_hole")]
 
-[node name="Swallowables" type="Node3D" parent="."]
+[node name="RemotePlayers" type="Node3D" parent="."]
 
-[node name="Music" type="AudioStreamPlayer" parent="."]
+[node name="Swallowables" type="Node3D" parent="." unique_id=2015179462]
+
+[node name="TrafficSpawner" type="Node" parent="."]
+script = ExtResource("8_traffic")
+
+[node name="Music" type="AudioStreamPlayer" parent="." unique_id=1619816211]
 stream = ExtResource("4_theme")
 volume_db = -13.0
 
-[node name="UI" type="CanvasLayer" parent="."]
+[node name="UI" type="CanvasLayer" parent="." unique_id=18094013]
 
-[node name="ScorePanel" type="PanelContainer" parent="UI"]
+[node name="NetworkStatus" type="Label" parent="UI"]
+visible = false
+offset_left = 18.0
+offset_top = 252.0
+offset_right = 520.0
+offset_bottom = 286.0
+theme_override_colors/font_color = Color(0.55, 0.9, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 20
+text = "HOST | Jugador | ENet :7000"
+
+[node name="ScorePanel" type="PanelContainer" parent="UI" unique_id=1591839920]
 offset_left = 16.0
 offset_top = 14.0
 offset_right = 276.0
 offset_bottom = 244.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_hud")
 
-[node name="VBox" type="VBoxContainer" parent="UI/ScorePanel"]
+[node name="VBox" type="VBoxContainer" parent="UI/ScorePanel" unique_id=210669574]
+layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Row" type="HBoxContainer" parent="UI/ScorePanel/VBox"]
+[node name="Row" type="HBoxContainer" parent="UI/ScorePanel/VBox" unique_id=1418833508]
+layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Badge" type="PanelContainer" parent="UI/ScorePanel/VBox/Row"]
+[node name="Badge" type="PanelContainer" parent="UI/ScorePanel/VBox/Row" unique_id=238361763]
 custom_minimum_size = Vector2(52, 52)
+layout_mode = 2
 size_flags_vertical = 4
 theme_override_styles/panel = SubResource("StyleBoxFlat_badge")
 
-[node name="LevelLabel" type="Label" parent="UI/ScorePanel/VBox/Row/Badge"]
+[node name="LevelLabel" type="Label" parent="UI/ScorePanel/VBox/Row/Badge" unique_id=512909802]
+layout_mode = 2
 theme_override_colors/font_color = Color(0.12, 0.09, 0.05, 1)
 theme_override_font_sizes/font_size = 26
 text = "1"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="ScoreCol" type="VBoxContainer" parent="UI/ScorePanel/VBox/Row"]
+[node name="ScoreCol" type="VBoxContainer" parent="UI/ScorePanel/VBox/Row" unique_id=695091794]
+layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 0
 
-[node name="ScoreCaption" type="Label" parent="UI/ScorePanel/VBox/Row/ScoreCol"]
+[node name="ScoreCaption" type="Label" parent="UI/ScorePanel/VBox/Row/ScoreCol" unique_id=168374444]
+layout_mode = 2
 theme_override_colors/font_color = Color(0.68, 0.72, 0.8, 1)
 theme_override_font_sizes/font_size = 13
 text = "PUNTUACIÓN"
 
-[node name="ScoreValue" type="Label" parent="UI/ScorePanel/VBox/Row/ScoreCol"]
+[node name="ScoreValue" type="Label" parent="UI/ScorePanel/VBox/Row/ScoreCol" unique_id=1565648011]
+layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 36
 text = "0"
 
-[node name="GoalBar" type="ProgressBar" parent="UI/ScorePanel/VBox"]
+[node name="GoalBar" type="ProgressBar" parent="UI/ScorePanel/VBox" unique_id=1694611996]
 custom_minimum_size = Vector2(0, 14)
+layout_mode = 2
 theme_override_styles/background = SubResource("StyleBoxFlat_barbg")
 theme_override_styles/fill = SubResource("StyleBoxFlat_barfill")
-value = 0.0
 show_percentage = false
 
-[node name="GoalLabel" type="Label" parent="UI/ScorePanel/VBox/GoalBar"]
+[node name="GoalLabel" type="Label" parent="UI/ScorePanel/VBox/GoalBar" unique_id=553925940]
+layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
@@ -170,10 +331,12 @@ text = "0 / 25"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Leaderboard" type="VBoxContainer" parent="UI/ScorePanel/VBox"]
+[node name="Leaderboard" type="VBoxContainer" parent="UI/ScorePanel/VBox" unique_id=1724311343]
+layout_mode = 2
 script = ExtResource("7_board")
 
-[node name="TimerPanel" type="PanelContainer" parent="UI"]
+[node name="TimerPanel" type="PanelContainer" parent="UI" unique_id=1018222753]
+anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -85.0
@@ -183,13 +346,15 @@ offset_bottom = 76.0
 grow_horizontal = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_pill")
 
-[node name="TimerLabel" type="Label" parent="UI/TimerPanel"]
+[node name="TimerLabel" type="Label" parent="UI/TimerPanel" unique_id=1714941969]
+layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 44
 text = "2:00"
 horizontal_alignment = 1
 
-[node name="PerfOverlay" type="Label" parent="UI"]
+[node name="PerfOverlay" type="Label" parent="UI" unique_id=1296421912]
+anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 18.0
@@ -197,10 +362,11 @@ offset_top = -110.0
 offset_right = 320.0
 offset_bottom = -14.0
 grow_vertical = 0
-mouse_filter = 2
 script = ExtResource("8_perf")
 
-[node name="RivalArrows" type="Control" parent="UI"]
+[node name="RivalArrows" type="Control" parent="UI" unique_id=633052137]
+layout_mode = 3
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
@@ -208,7 +374,9 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("6_arrows")
 
-[node name="Joystick" type="Control" parent="UI"]
+[node name="Joystick" type="Control" parent="UI" unique_id=1349063706]
+layout_mode = 3
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
@@ -216,50 +384,1162 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("5_joy")
 
-[node name="GameOver" type="Control" parent="UI"]
+[node name="GameOver" type="Control" parent="UI" unique_id=1847968435]
+layout_mode = 3
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Dim" type="ColorRect" parent="UI/GameOver"]
+[node name="Dim" type="ColorRect" parent="UI/GameOver" unique_id=1575504091]
+layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
 color = Color(0, 0, 0, 0.65)
 
-[node name="Center" type="CenterContainer" parent="UI/GameOver"]
+[node name="Center" type="CenterContainer" parent="UI/GameOver" unique_id=190003190]
+layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
 
-[node name="Panel" type="PanelContainer" parent="UI/GameOver/Center"]
+[node name="Panel" type="PanelContainer" parent="UI/GameOver/Center" unique_id=154903499]
+layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
 
-[node name="Margin" type="MarginContainer" parent="UI/GameOver/Center/Panel"]
+[node name="Margin" type="MarginContainer" parent="UI/GameOver/Center/Panel" unique_id=2013499070]
+layout_mode = 2
 theme_override_constants/margin_left = 44
 theme_override_constants/margin_top = 36
 theme_override_constants/margin_right = 44
 theme_override_constants/margin_bottom = 36
 
-[node name="VBox" type="VBoxContainer" parent="UI/GameOver/Center/Panel/Margin"]
+[node name="VBox" type="VBoxContainer" parent="UI/GameOver/Center/Panel/Margin" unique_id=886937272]
+layout_mode = 2
 theme_override_constants/separation = 18
 
-[node name="Title" type="Label" parent="UI/GameOver/Center/Panel/Margin/VBox"]
+[node name="Title" type="Label" parent="UI/GameOver/Center/Panel/Margin/VBox" unique_id=1907221217]
+layout_mode = 2
 theme_override_font_sizes/font_size = 40
 text = "¡Se acabó el tiempo!"
 horizontal_alignment = 1
 
-[node name="ScoreResult" type="Label" parent="UI/GameOver/Center/Panel/Margin/VBox"]
+[node name="ScoreResult" type="Label" parent="UI/GameOver/Center/Panel/Margin/VBox" unique_id=1957908350]
+layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.82, 0.35, 1)
 theme_override_font_sizes/font_size = 30
 text = "Puntos: 0"
 horizontal_alignment = 1
 
-[node name="ReplayButton" type="Button" parent="UI/GameOver/Center/Panel/Margin/VBox"]
+[node name="ReplayButton" type="Button" parent="UI/GameOver/Center/Panel/Margin/VBox" unique_id=1581557267]
 custom_minimum_size = Vector2(280, 66)
+layout_mode = 2
 theme_override_font_sizes/font_size = 28
 text = "Jugar de nuevo"
 
-[node name="MenuButton" type="Button" parent="UI/GameOver/Center/Panel/Margin/VBox"]
+[node name="MenuButton" type="Button" parent="UI/GameOver/Center/Panel/Margin/VBox" unique_id=131872948]
 custom_minimum_size = Vector2(280, 66)
+layout_mode = 2
 theme_override_font_sizes/font_size = 28
 text = "Menú"
+
+[node name="AuthoredCity" type="Node3D" parent="." unique_id=1910899888]
+
+[node name="Roads" type="Node3D" parent="AuthoredCity" unique_id=355054331]
+
+[node name="SidewalkV_-64" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=733479924]
+transform = Transform3D(8.2, 0, 0, 0, 0.02, 0, 0, 0, 144, -64, 0.006, 0)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkV_-48" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=248815782]
+transform = Transform3D(8.2, 0, 0, 0, 0.02, 0, 0, 0, 144, -48, 0.006, 0)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkV_-32" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=457212890]
+transform = Transform3D(8.2, 0, 0, 0, 0.02, 0, 0, 0, 144, -32, 0.006, 0)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkV_-16_A" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=808020188]
+transform = Transform3D(8.2, 0, 0, 0, 0.02, 0, 0, 0, 72, -16, 0.006, -36)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkV_-16_B" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=786268694]
+transform = Transform3D(8.2, 0, 0, 0, 0.02, 0, 0, 0, 72, -16, 0.006, 36)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkV_0_A" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1373866176]
+transform = Transform3D(8.2, 0, 0, 0, 0.02, 0, 0, 0, 72, 0, 0.006, -36)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkV_0_B" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=225003283]
+transform = Transform3D(8.2, 0, 0, 0, 0.02, 0, 0, 0, 72, 0, 0.006, 36)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkV_16_A" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=769627470]
+transform = Transform3D(8.2, 0, 0, 0, 0.02, 0, 0, 0, 72, 16, 0.006, -36)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkV_16_B" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=10075075]
+transform = Transform3D(8.2, 0, 0, 0, 0.02, 0, 0, 0, 72, 16, 0.006, 36)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkV_32" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1655014410]
+transform = Transform3D(8.2, 0, 0, 0, 0.02, 0, 0, 0, 144, 32, 0.006, 0)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkV_48" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=571825294]
+transform = Transform3D(8.2, 0, 0, 0, 0.02, 0, 0, 0, 144, 48, 0.006, 0)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkV_64" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=442322262]
+transform = Transform3D(8.2, 0, 0, 0, 0.02, 0, 0, 0, 144, 64, 0.006, 0)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkH_-64" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1867910774]
+transform = Transform3D(144, 0, 0, 0, 0.02, 0, 0, 0, 8.2, 0, 0.006, -64)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkH_-48" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=209473244]
+transform = Transform3D(144, 0, 0, 0, 0.02, 0, 0, 0, 8.2, 0, 0.006, -48)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkH_-32" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1251379473]
+transform = Transform3D(144, 0, 0, 0, 0.02, 0, 0, 0, 8.2, 0, 0.006, -32)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkH_-16_A" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=736162071]
+transform = Transform3D(72, 0, 0, 0, 0.02, 0, 0, 0, 8.2, -36, 0.006, -16)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkH_-16_B" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1266329658]
+transform = Transform3D(72, 0, 0, 0, 0.02, 0, 0, 0, 8.2, 36, 0.006, -16)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkH_0_A" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1460530615]
+transform = Transform3D(72, 0, 0, 0, 0.02, 0, 0, 0, 8.2, -36, 0.006, 0)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkH_0_B" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1943447862]
+transform = Transform3D(72, 0, 0, 0, 0.02, 0, 0, 0, 8.2, 36, 0.006, 0)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkH_16_A" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=920532285]
+transform = Transform3D(72, 0, 0, 0, 0.02, 0, 0, 0, 8.2, -36, 0.006, 16)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkH_16_B" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=340679644]
+transform = Transform3D(72, 0, 0, 0, 0.02, 0, 0, 0, 8.2, 36, 0.006, 16)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkH_32" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=123645619]
+transform = Transform3D(144, 0, 0, 0, 0.02, 0, 0, 0, 8.2, 0, 0.006, 32)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkH_48" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=891782101]
+transform = Transform3D(144, 0, 0, 0, 0.02, 0, 0, 0, 8.2, 0, 0.006, 48)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="SidewalkH_64" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=746858602]
+transform = Transform3D(144, 0, 0, 0, 0.02, 0, 0, 0, 8.2, 0, 0.006, 64)
+material_override = SubResource("ShaderMaterial_sidewalk")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadV_-64" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=2041034035]
+transform = Transform3D(5, 0, 0, 0, 0.02, 0, 0, 0, 144, -64, 0.01, 0)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadV_-48" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=448542839]
+transform = Transform3D(5, 0, 0, 0, 0.02, 0, 0, 0, 144, -48, 0.01, 0)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadV_-32" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=510794352]
+transform = Transform3D(5, 0, 0, 0, 0.02, 0, 0, 0, 144, -32, 0.01, 0)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadV_-16_A" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1401878768]
+transform = Transform3D(5, 0, 0, 0, 0.02, 0, 0, 0, 72, -16, 0.01, -36)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadV_-16_B" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1606299547]
+transform = Transform3D(5, 0, 0, 0, 0.02, 0, 0, 0, 72, -16, 0.01, 36)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadV_0_A" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1107443318]
+transform = Transform3D(5, 0, 0, 0, 0.02, 0, 0, 0, 72, 0, 0.01, -36)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadV_0_B" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1979060281]
+transform = Transform3D(5, 0, 0, 0, 0.02, 0, 0, 0, 72, 0, 0.01, 36)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadV_16_A" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1706866958]
+transform = Transform3D(5, 0, 0, 0, 0.02, 0, 0, 0, 72, 16, 0.01, -36)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadV_16_B" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1620354522]
+transform = Transform3D(5, 0, 0, 0, 0.02, 0, 0, 0, 72, 16, 0.01, 36)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadV_32" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1415742695]
+transform = Transform3D(5, 0, 0, 0, 0.02, 0, 0, 0, 144, 32, 0.01, 0)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadV_48" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1794005530]
+transform = Transform3D(5, 0, 0, 0, 0.02, 0, 0, 0, 144, 48, 0.01, 0)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadV_64" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1138745923]
+transform = Transform3D(5, 0, 0, 0, 0.02, 0, 0, 0, 144, 64, 0.01, 0)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadH_-64" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=2083164628]
+transform = Transform3D(144, 0, 0, 0, 0.02, 0, 0, 0, 5, 0, 0.01, -64)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadH_-48" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1588827827]
+transform = Transform3D(144, 0, 0, 0, 0.02, 0, 0, 0, 5, 0, 0.01, -48)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadH_-32" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=2011335952]
+transform = Transform3D(144, 0, 0, 0, 0.02, 0, 0, 0, 5, 0, 0.01, -32)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadH_-16_A" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=2117366063]
+transform = Transform3D(72, 0, 0, 0, 0.02, 0, 0, 0, 5, -36, 0.01, -16)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadH_-16_B" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=359950881]
+transform = Transform3D(72, 0, 0, 0, 0.02, 0, 0, 0, 5, 36, 0.01, -16)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadH_0_A" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=661057369]
+transform = Transform3D(72, 0, 0, 0, 0.02, 0, 0, 0, 5, -36, 0.01, 0)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadH_0_B" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1443243159]
+transform = Transform3D(72, 0, 0, 0, 0.02, 0, 0, 0, 5, 36, 0.01, 0)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadH_16_A" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=2107563022]
+transform = Transform3D(72, 0, 0, 0, 0.02, 0, 0, 0, 5, -36, 0.01, 16)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadH_16_B" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1793863341]
+transform = Transform3D(72, 0, 0, 0, 0.02, 0, 0, 0, 5, 36, 0.01, 16)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadH_32" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1351256276]
+transform = Transform3D(144, 0, 0, 0, 0.02, 0, 0, 0, 5, 0, 0.01, 32)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadH_48" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=748981476]
+transform = Transform3D(144, 0, 0, 0, 0.02, 0, 0, 0, 5, 0, 0.01, 48)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="RoadH_64" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=250685747]
+transform = Transform3D(144, 0, 0, 0, 0.02, 0, 0, 0, 5, 0, 0.01, 64)
+material_override = SubResource("ShaderMaterial_asphalt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineV_-64" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=737460089]
+transform = Transform3D(0.25, 0, 0, 0, 0.02, 0, 0, 0, 144, -64, 0.014, 0)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineV_-48" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=463543337]
+transform = Transform3D(0.25, 0, 0, 0, 0.02, 0, 0, 0, 144, -48, 0.014, 0)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineV_-32" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=946272984]
+transform = Transform3D(0.25, 0, 0, 0, 0.02, 0, 0, 0, 144, -32, 0.014, 0)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineV_-16_A" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1367521179]
+transform = Transform3D(0.25, 0, 0, 0, 0.02, 0, 0, 0, 72, -16, 0.014, -36)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineV_-16_B" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=490956559]
+transform = Transform3D(0.25, 0, 0, 0, 0.02, 0, 0, 0, 72, -16, 0.014, 36)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineV_0_A" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1603167934]
+transform = Transform3D(0.25, 0, 0, 0, 0.02, 0, 0, 0, 72, 0, 0.014, -36)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineV_0_B" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=314130471]
+transform = Transform3D(0.25, 0, 0, 0, 0.02, 0, 0, 0, 72, 0, 0.014, 36)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineV_16_A" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=595694839]
+transform = Transform3D(0.25, 0, 0, 0, 0.02, 0, 0, 0, 72, 16, 0.014, -36)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineV_16_B" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1785455033]
+transform = Transform3D(0.25, 0, 0, 0, 0.02, 0, 0, 0, 72, 16, 0.014, 36)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineV_32" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=970603951]
+transform = Transform3D(0.25, 0, 0, 0, 0.02, 0, 0, 0, 144, 32, 0.014, 0)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineV_48" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1327137922]
+transform = Transform3D(0.25, 0, 0, 0, 0.02, 0, 0, 0, 144, 48, 0.014, 0)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineV_64" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1444629734]
+transform = Transform3D(0.25, 0, 0, 0, 0.02, 0, 0, 0, 144, 64, 0.014, 0)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineH_-64" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1549318157]
+transform = Transform3D(144, 0, 0, 0, 0.02, 0, 0, 0, 0.25, 0, 0.014, -64)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineH_-48" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=2136342612]
+transform = Transform3D(144, 0, 0, 0, 0.02, 0, 0, 0, 0.25, 0, 0.014, -48)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineH_-32" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1643954196]
+transform = Transform3D(144, 0, 0, 0, 0.02, 0, 0, 0, 0.25, 0, 0.014, -32)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineH_-16_A" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=573614430]
+transform = Transform3D(72, 0, 0, 0, 0.02, 0, 0, 0, 0.25, -36, 0.014, -16)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineH_-16_B" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=656150154]
+transform = Transform3D(72, 0, 0, 0, 0.02, 0, 0, 0, 0.25, 36, 0.014, -16)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineH_0_A" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1086846179]
+transform = Transform3D(72, 0, 0, 0, 0.02, 0, 0, 0, 0.25, -36, 0.014, 0)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineH_0_B" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=860298480]
+transform = Transform3D(72, 0, 0, 0, 0.02, 0, 0, 0, 0.25, 36, 0.014, 0)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineH_16_A" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1045702984]
+transform = Transform3D(72, 0, 0, 0, 0.02, 0, 0, 0, 0.25, -36, 0.014, 16)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineH_16_B" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=6305719]
+transform = Transform3D(72, 0, 0, 0, 0.02, 0, 0, 0, 0.25, 36, 0.014, 16)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineH_32" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=491420682]
+transform = Transform3D(144, 0, 0, 0, 0.02, 0, 0, 0, 0.25, 0, 0.014, 32)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineH_48" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1005197693]
+transform = Transform3D(144, 0, 0, 0, 0.02, 0, 0, 0, 0.25, 0, 0.014, 48)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="CenterLineH_64" type="MeshInstance3D" parent="AuthoredCity/Roads" unique_id=1523571406]
+transform = Transform3D(144, 0, 0, 0, 0.02, 0, 0, 0, 0.25, 0, 0.014, 64)
+material_override = SubResource("ShaderMaterial_line")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="Lake" type="Node3D" parent="AuthoredCity" unique_id=1601429843]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 0, -40)
+
+[node name="LakeGreen" type="MeshInstance3D" parent="AuthoredCity/Lake"]
+transform = Transform3D(7.4, 0, 0, 0, 0.04, 0, 0, 0, 7.4, 0, 0.02, 0)
+material_override = SubResource("ShaderMaterial_grass")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="BasinFloor" type="MeshInstance3D" parent="AuthoredCity/Lake" unique_id=1914938869]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
+material_override = SubResource("ShaderMaterial_lake_basin")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_lake_basin")
+
+[node name="Water" type="MeshInstance3D" parent="AuthoredCity/Lake" unique_id=708253318]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.055, 0)
+material_override = SubResource("ShaderMaterial_water")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_lake_water")
+
+[node name="RimNorth" type="MeshInstance3D" parent="AuthoredCity/Lake" unique_id=689052406]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.275, -2.75)
+material_override = SubResource("StandardMaterial3D_rim")
+mesh = SubResource("BoxMesh_lake_rim_long")
+
+[node name="RimSouth" type="MeshInstance3D" parent="AuthoredCity/Lake" unique_id=2059198008]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.275, 2.75)
+material_override = SubResource("StandardMaterial3D_rim")
+mesh = SubResource("BoxMesh_lake_rim_long")
+
+[node name="RimWest" type="MeshInstance3D" parent="AuthoredCity/Lake" unique_id=1288706709]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.25, 0.275, 0)
+material_override = SubResource("StandardMaterial3D_rim")
+mesh = SubResource("BoxMesh_lake_rim_short")
+
+[node name="RimEast" type="MeshInstance3D" parent="AuthoredCity/Lake" unique_id=811918972]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.25, 0.275, 0)
+material_override = SubResource("StandardMaterial3D_rim")
+mesh = SubResource("BoxMesh_lake_rim_short")
+
+[node name="RimCollision" type="StaticBody3D" parent="AuthoredCity/Lake" unique_id=1667202187]
+collision_mask = 2
+
+[node name="North" type="CollisionShape3D" parent="AuthoredCity/Lake/RimCollision" unique_id=1507487157]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.275, -2.75)
+shape = SubResource("BoxShape3D_lake_rim_long")
+
+[node name="South" type="CollisionShape3D" parent="AuthoredCity/Lake/RimCollision" unique_id=710175452]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.275, 2.75)
+shape = SubResource("BoxShape3D_lake_rim_long")
+
+[node name="West" type="CollisionShape3D" parent="AuthoredCity/Lake/RimCollision" unique_id=1824950726]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.25, 0.275, 0)
+shape = SubResource("BoxShape3D_lake_rim_short")
+
+[node name="East" type="CollisionShape3D" parent="AuthoredCity/Lake/RimCollision" unique_id=826589518]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.25, 0.275, 0)
+shape = SubResource("BoxShape3D_lake_rim_short")
+
+[node name="CentralPlaza" type="Node3D" parent="AuthoredCity" unique_id=1504332333]
+
+[node name="PlanterNW" type="MeshInstance3D" parent="AuthoredCity/CentralPlaza" unique_id=471871872]
+transform = Transform3D(7.4, 0, 0, 0, 0.08, 0, 0, 0, 7.4, -8, 0.04, -8)
+material_override = SubResource("ShaderMaterial_grass")
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="PlanterNE" type="MeshInstance3D" parent="AuthoredCity/CentralPlaza" unique_id=1898923289]
+transform = Transform3D(7.4, 0, 0, 0, 0.08, 0, 0, 0, 7.4, 8, 0.04, -8)
+material_override = SubResource("ShaderMaterial_grass")
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="PlanterSW" type="MeshInstance3D" parent="AuthoredCity/CentralPlaza" unique_id=1617797687]
+transform = Transform3D(7.4, 0, 0, 0, 0.08, 0, 0, 0, 7.4, -8, 0.04, 8)
+material_override = SubResource("ShaderMaterial_grass")
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="PlanterSE" type="MeshInstance3D" parent="AuthoredCity/CentralPlaza" unique_id=1152775524]
+transform = Transform3D(7.4, 0, 0, 0, 0.08, 0, 0, 0, 7.4, 8, 0.04, 8)
+material_override = SubResource("ShaderMaterial_grass")
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="MonumentBase" type="MeshInstance3D" parent="AuthoredCity/CentralPlaza" unique_id=938268568]
+transform = Transform3D(3, 0, 0, 0, 0.3, 0, 0, 0, 3, -8, 0.15, 8)
+material_override = SubResource("StandardMaterial3D_rim")
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="Monument" type="MeshInstance3D" parent="AuthoredCity/CentralPlaza" unique_id=432711335]
+transform = Transform3D(0.8, 0, 0, 0, 3.2, 0, 0, 0, 0.8, -8, 1.9, 8)
+material_override = SubResource("StandardMaterial3D_monument")
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="MonumentCrown" type="MeshInstance3D" parent="AuthoredCity/CentralPlaza" unique_id=361948384]
+transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, -8, 3.8, 8)
+material_override = SubResource("StandardMaterial3D_rim")
+mesh = SubResource("SphereMesh_plaza_orb")
+
+[node name="TreeNW" parent="AuthoredCity/CentralPlaza" unique_id=43303129 instance=ExtResource("31_tree_oak")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.6, 0.08, -9.6)
+
+[node name="TreeNE" parent="AuthoredCity/CentralPlaza" unique_id=1257131838 instance=ExtResource("30_tree_default")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.5, 0.08, -5.5)
+
+[node name="TreeSW" parent="AuthoredCity/CentralPlaza" unique_id=298297619 instance=ExtResource("30_tree_default")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.5, 0.08, 5.5)
+
+[node name="TreeSE" parent="AuthoredCity/CentralPlaza" unique_id=1143788805 instance=ExtResource("31_tree_oak")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.6, 0.08, 9.6)
+
+[node name="TreeNW2" parent="AuthoredCity/CentralPlaza" instance=ExtResource("30_tree_default")]
+transform = Transform3D(0.85, 0, 0, 0, 0.85, 0, 0, 0, 0.85, -6.3, 0.08, -6.3)
+
+[node name="TreeNE2" parent="AuthoredCity/CentralPlaza" instance=ExtResource("31_tree_oak")]
+transform = Transform3D(0.85, 0, 0, 0, 0.85, 0, 0, 0, 0.85, 5.5, 0.08, -5.5)
+
+[node name="TreeSW2" parent="AuthoredCity/CentralPlaza" instance=ExtResource("31_tree_oak")]
+transform = Transform3D(0.85, 0, 0, 0, 0.85, 0, 0, 0, 0.85, -5.5, 0.08, 10.5)
+
+[node name="TreeSE2" parent="AuthoredCity/CentralPlaza" instance=ExtResource("30_tree_default")]
+transform = Transform3D(0.85, 0, 0, 0, 0.85, 0, 0, 0, 0.85, 6.3, 0.08, 9.8)
+
+[node name="FountainBasin" type="MeshInstance3D" parent="AuthoredCity/CentralPlaza"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0.16, -8)
+material_override = SubResource("StandardMaterial3D_rim")
+mesh = SubResource("BoxMesh_plaza_basin")
+
+[node name="FountainWater" type="MeshInstance3D" parent="AuthoredCity/CentralPlaza"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0.28, -8)
+material_override = SubResource("ShaderMaterial_plaza_water")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_plaza_water")
+
+[node name="FountainRimNorth" type="MeshInstance3D" parent="AuthoredCity/CentralPlaza"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0.35, -9.7)
+material_override = SubResource("StandardMaterial3D_rim")
+mesh = SubResource("BoxMesh_plaza_rim_long")
+
+[node name="FountainRimSouth" type="MeshInstance3D" parent="AuthoredCity/CentralPlaza"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0.35, -6.3)
+material_override = SubResource("StandardMaterial3D_rim")
+mesh = SubResource("BoxMesh_plaza_rim_long")
+
+[node name="FountainRimWest" type="MeshInstance3D" parent="AuthoredCity/CentralPlaza"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.8, 0.35, -8)
+material_override = SubResource("StandardMaterial3D_rim")
+mesh = SubResource("BoxMesh_plaza_rim_short")
+
+[node name="FountainRimEast" type="MeshInstance3D" parent="AuthoredCity/CentralPlaza"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.2, 0.35, -8)
+material_override = SubResource("StandardMaterial3D_rim")
+mesh = SubResource("BoxMesh_plaza_rim_short")
+
+[node name="Parks" type="Node3D" parent="AuthoredCity" unique_id=93406490]
+
+[node name="Park_01" type="Node3D" parent="AuthoredCity/Parks" unique_id=736081683]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -56, 0, -40)
+
+[node name="Grass" type="MeshInstance3D" parent="AuthoredCity/Parks/Park_01" unique_id=1269847487]
+transform = Transform3D(8.6, 0, 0, 0, 0.02, 0, 0, 0, 8.6, 0, 0.004, 0)
+material_override = SubResource("ShaderMaterial_grass")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="Tree_A" parent="AuthoredCity/Parks/Park_01" unique_id=1575768462 instance=ExtResource("30_tree_default")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, -1.8)
+
+[node name="Tree_B" parent="AuthoredCity/Parks/Park_01" unique_id=212012406 instance=ExtResource("31_tree_oak")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0, 1.6)
+
+[node name="Park_02" type="Node3D" parent="AuthoredCity/Parks" unique_id=1137664320]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 0, 24)
+
+[node name="Grass" type="MeshInstance3D" parent="AuthoredCity/Parks/Park_02" unique_id=1551486262]
+transform = Transform3D(8.6, 0, 0, 0, 0.02, 0, 0, 0, 8.6, 0, 0.004, 0)
+material_override = SubResource("ShaderMaterial_grass")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="Tree_A" parent="AuthoredCity/Parks/Park_02" unique_id=1659258257 instance=ExtResource("31_tree_oak")]
+transform = Transform3D(0.93232733, 0, 0.36161545, 0, 1, 0, -0.36161545, 0, 0.93232733, -2, 0, -1.8)
+
+[node name="Tree_B" parent="AuthoredCity/Parks/Park_02" unique_id=277209188 instance=ExtResource("30_tree_default")]
+transform = Transform3D(0.9582439, 0, -0.2859522, 0, 1, 0, 0.2859522, 0, 0.9582439, 2.1, 0, 1.6)
+
+[node name="Park_03" type="Node3D" parent="AuthoredCity/Parks" unique_id=1755188233]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0, -56)
+
+[node name="Grass" type="MeshInstance3D" parent="AuthoredCity/Parks/Park_03" unique_id=332017915]
+transform = Transform3D(8.6, 0, 0, 0, 0.02, 0, 0, 0, 8.6, 0, 0.004, 0)
+material_override = SubResource("ShaderMaterial_grass")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="Tree_A" parent="AuthoredCity/Parks/Park_03" unique_id=108578793 instance=ExtResource("30_tree_default")]
+transform = Transform3D(0.7384685, 0, 0.6742879, 0, 1, 0, -0.6742879, 0, 0.7384685, -2, 0, -1.8)
+
+[node name="Tree_B" parent="AuthoredCity/Parks/Park_03" unique_id=600542221 instance=ExtResource("31_tree_oak")]
+transform = Transform3D(0.8364627, 0, -0.54802394, 0, 1, 0, 0.54802394, 0, 0.8364627, 2.1, 0, 1.6)
+
+[node name="Park_04" type="Node3D" parent="AuthoredCity/Parks" unique_id=1427388958]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0, 40)
+
+[node name="Grass" type="MeshInstance3D" parent="AuthoredCity/Parks/Park_04" unique_id=710439144]
+transform = Transform3D(8.6, 0, 0, 0, 0.02, 0, 0, 0, 8.6, 0, 0.004, 0)
+material_override = SubResource("ShaderMaterial_grass")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="Tree_A" parent="AuthoredCity/Parks/Park_04" unique_id=1584229664 instance=ExtResource("31_tree_oak")]
+transform = Transform3D(0.4446615, 0, 0.89569867, 0, 1, 0, -0.89569867, 0, 0.4446615, -2, 0, -1.8)
+
+[node name="Tree_B" parent="AuthoredCity/Parks/Park_04" unique_id=1403257483 instance=ExtResource("30_tree_default")]
+transform = Transform3D(0.64482653, 0, -0.76432896, 0, 1, 0, 0.76432896, 0, 0.64482653, 2.1, 0, 1.6)
+
+[node name="Park_05" type="Node3D" parent="AuthoredCity/Parks" unique_id=831348240]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, 56)
+
+[node name="Grass" type="MeshInstance3D" parent="AuthoredCity/Parks/Park_05" unique_id=576469528]
+transform = Transform3D(8.6, 0, 0, 0, 0.02, 0, 0, 0, 8.6, 0, 0.004, 0)
+material_override = SubResource("ShaderMaterial_grass")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="Tree_A" parent="AuthoredCity/Parks/Park_05" unique_id=2001715824 instance=ExtResource("30_tree_default")]
+transform = Transform3D(0.09067161, 0, 0.99588084, 0, 1, 0, -0.99588084, 0, 0.09067161, -2, 0, -1.8)
+
+[node name="Tree_B" parent="AuthoredCity/Parks/Park_05" unique_id=750981227 instance=ExtResource("31_tree_oak")]
+transform = Transform3D(0.39933956, 0, -0.9168031, 0, 1, 0, 0.9168031, 0, 0.39933956, 2.1, 0, 1.6)
+
+[node name="Park_06" type="Node3D" parent="AuthoredCity/Parks" unique_id=1926386082]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, -56)
+
+[node name="Grass" type="MeshInstance3D" parent="AuthoredCity/Parks/Park_06" unique_id=2045861948]
+transform = Transform3D(8.6, 0, 0, 0, 0.02, 0, 0, 0, 8.6, 0, 0.004, 0)
+material_override = SubResource("ShaderMaterial_grass")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="Tree_A" parent="AuthoredCity/Parks/Park_06" unique_id=1254022298 instance=ExtResource("31_tree_oak")]
+transform = Transform3D(-0.27559027, 0, 0.9612752, 0, 1, 0, -0.9612752, 0, -0.27559027, -2, 0, -1.8)
+
+[node name="Tree_B" parent="AuthoredCity/Parks/Park_06" unique_id=199367859 instance=ExtResource("30_tree_default")]
+transform = Transform3D(0.120502725, 0, -0.992713, 0, 1, 0, 0.992713, 0, 0.120502725, 2.1, 0, 1.6)
+
+[node name="Park_07" type="Node3D" parent="AuthoredCity/Parks" unique_id=1559194280]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0, -40)
+
+[node name="Grass" type="MeshInstance3D" parent="AuthoredCity/Parks/Park_07" unique_id=353348249]
+transform = Transform3D(8.6, 0, 0, 0, 0.02, 0, 0, 0, 8.6, 0, 0.004, 0)
+material_override = SubResource("ShaderMaterial_grass")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="Tree_A" parent="AuthoredCity/Parks/Park_07" unique_id=1946893341 instance=ExtResource("30_tree_default")]
+transform = Transform3D(-0.60455227, 0, 0.7965655, 0, 1, 0, -0.7965655, 0, -0.60455227, -2, 0, -1.8)
+
+[node name="Tree_B" parent="AuthoredCity/Parks/Park_07" unique_id=952657915 instance=ExtResource("31_tree_oak")]
+transform = Transform3D(-0.16839746, 0, -0.9857192, 0, 1, 0, 0.9857192, 0, -0.16839746, 2.1, 0, 1.6)
+
+[node name="Park_08" type="Node3D" parent="AuthoredCity/Parks" unique_id=760108631]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0, 56)
+
+[node name="Grass" type="MeshInstance3D" parent="AuthoredCity/Parks/Park_08" unique_id=2089150109]
+transform = Transform3D(8.6, 0, 0, 0, 0.02, 0, 0, 0, 8.6, 0, 0.004, 0)
+material_override = SubResource("ShaderMaterial_grass")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="Tree_A" parent="AuthoredCity/Parks/Park_08" unique_id=1065679104 instance=ExtResource("31_tree_oak")]
+transform = Transform3D(-0.85169095, 0, 0.5240444, 0, 1, 0, -0.5240444, 0, -0.85169095, -2, 0, -1.8)
+
+[node name="Tree_B" parent="AuthoredCity/Parks/Park_08" unique_id=2037382261 instance=ExtResource("30_tree_default")]
+transform = Transform3D(-0.44323438, 0, -0.89640576, 0, 1, 0, 0.89640576, 0, -0.44323438, 2.1, 0, 1.6)
+
+[node name="Park_09" type="Node3D" parent="AuthoredCity/Parks" unique_id=894498435]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 0, -8)
+
+[node name="Grass" type="MeshInstance3D" parent="AuthoredCity/Parks/Park_09" unique_id=222808522]
+transform = Transform3D(8.6, 0, 0, 0, 0.02, 0, 0, 0, 8.6, 0, 0.004, 0)
+material_override = SubResource("ShaderMaterial_grass")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="Tree_A" parent="AuthoredCity/Parks/Park_09" unique_id=615001153 instance=ExtResource("30_tree_default")]
+transform = Transform3D(-0.98355734, 0, 0.18059623, 0, 1, 0, -0.18059623, 0, -0.98355734, -2, 0, -1.8)
+
+[node name="Tree_B" parent="AuthoredCity/Parks/Park_09" unique_id=1141556192 instance=ExtResource("31_tree_oak")]
+transform = Transform3D(-0.68105584, 0, -0.7322315, 0, 1, 0, 0.7322315, 0, -0.68105584, 2.1, 0, 1.6)
+
+[node name="Park_10" type="Node3D" parent="AuthoredCity/Parks" unique_id=1926691496]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 0, 40)
+
+[node name="Grass" type="MeshInstance3D" parent="AuthoredCity/Parks/Park_10" unique_id=721206514]
+transform = Transform3D(8.6, 0, 0, 0, 0.02, 0, 0, 0, 8.6, 0, 0.004, 0)
+material_override = SubResource("ShaderMaterial_grass")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="Tree_A" parent="AuthoredCity/Parks/Park_10" unique_id=1056635142 instance=ExtResource("31_tree_oak")]
+transform = Transform3D(-0.9823038, 0, -0.18729459, 0, 1, 0, 0.18729459, 0, -0.9823038, -2, 0, -1.8)
+
+[node name="Tree_B" parent="AuthoredCity/Parks/Park_10" unique_id=1366420365 instance=ExtResource("30_tree_default")]
+transform = Transform3D(-0.86200076, 0, -0.5069069, 0, 1, 0, 0.5069069, 0, -0.86200076, 2.1, 0, 1.6)
+
+[node name="Park_11" type="Node3D" parent="AuthoredCity/Parks" unique_id=1739753417]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56, 0, -24)
+
+[node name="Grass" type="MeshInstance3D" parent="AuthoredCity/Parks/Park_11" unique_id=146005084]
+transform = Transform3D(8.6, 0, 0, 0, 0.02, 0, 0, 0, 8.6, 0, 0.004, 0)
+material_override = SubResource("ShaderMaterial_grass")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="Tree_A" parent="AuthoredCity/Parks/Park_11" unique_id=470460476 instance=ExtResource("30_tree_default")]
+transform = Transform3D(-0.8481, 0, -0.5298362, 0, 1, 0, 0.5298362, 0, -0.8481, -2, 0, -1.8)
+
+[node name="Tree_B" parent="AuthoredCity/Parks/Park_11" unique_id=1663868714 instance=ExtResource("31_tree_oak")]
+transform = Transform3D(-0.9709582, 0, -0.23924923, 0, 1, 0, 0.23924923, 0, -0.9709582, 2.1, 0, 1.6)
+
+[node name="Park_12" type="Node3D" parent="AuthoredCity/Parks" unique_id=1759058697]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56, 0, 24)
+
+[node name="Grass" type="MeshInstance3D" parent="AuthoredCity/Parks/Park_12" unique_id=1284572152]
+transform = Transform3D(8.6, 0, 0, 0, 0.02, 0, 0, 0, 8.6, 0, 0.004, 0)
+material_override = SubResource("ShaderMaterial_grass")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_city_unit")
+
+[node name="Tree_A" parent="AuthoredCity/Parks/Park_12" unique_id=379990742 instance=ExtResource("31_tree_oak")]
+transform = Transform3D(-0.59910977, 0, -0.80066687, 0, 1, 0, 0.80066687, 0, -0.59910977, -2, 0, -1.8)
+
+[node name="Tree_B" parent="AuthoredCity/Parks/Park_12" unique_id=430484349 instance=ExtResource("30_tree_default")]
+transform = Transform3D(-0.9988286, 0, 0.0483885, 0, 1, 0, -0.0483885, 0, -0.9988286, 2.1, 0, 1.6)
+
+[node name="Buildings" type="Node3D" parent="AuthoredCity" unique_id=121783004]
+
+[node name="Block_01" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1442046123]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -56, 0, -56)
+
+[node name="Tower" parent="AuthoredCity/Buildings/Block_01" unique_id=1084772982 instance=ExtResource("25_skya")]
+
+[node name="Block_02" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1938401928]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -56, 0, -24)
+
+[node name="Building" parent="AuthoredCity/Buildings/Block_02" unique_id=863322766 instance=ExtResource("12_bldb")]
+transform = Transform3D(0.9393727, 0, 0.3428978, 0, 1, 0, -0.3428978, 0, 0.9393727, 0, 0, 0)
+
+[node name="Block_03" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1455366707]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -56, 0, -8)
+
+[node name="Building_A" parent="AuthoredCity/Buildings/Block_03" unique_id=1540050321 instance=ExtResource("13_bldc")]
+transform = Transform3D(0.8138785, 0, 0.58103514, 0, 1, 0, -0.58103514, 0, 0.8138785, -2, 0, -1.8)
+
+[node name="Building_B" parent="AuthoredCity/Buildings/Block_03" unique_id=1372683050 instance=ExtResource("15_blde")]
+transform = Transform3D(0.8577087, 0, -0.514136, 0, 1, 0, 0.514136, 0, 0.8577087, 2, 0, 1.8)
+
+[node name="Block_04" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1092963038]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -56, 0, 8)
+
+[node name="Building" parent="AuthoredCity/Buildings/Block_04" unique_id=1098860958 instance=ExtResource("14_bldd")]
+transform = Transform3D(0.49757108, 0, 0.8674232, 0, 1, 0, -0.8674232, 0, 0.49757108, 0, 0, 0)
+
+[node name="Block_05" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1475639663]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -56, 0, 24)
+
+[node name="Building_A" parent="AuthoredCity/Buildings/Block_05" unique_id=1299912494 instance=ExtResource("15_blde")]
+transform = Transform3D(0.3247963, 0, 0.94578403, 0, 1, 0, -0.94578403, 0, 0.3247963, -2, 0, -1.8)
+
+[node name="Building_B" parent="AuthoredCity/Buildings/Block_05" unique_id=197340232 instance=ExtResource("12_bldb")]
+transform = Transform3D(0.47132832, 0, -0.8819578, 0, 1, 0, 0.8819578, 0, 0.47132832, 2, 0, 1.8)
+
+[node name="Block_06" type="Node3D" parent="AuthoredCity/Buildings" unique_id=2000745076]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -56, 0, 40)
+
+[node name="Tower" parent="AuthoredCity/Buildings/Block_06" unique_id=965360778 instance=ExtResource("26_skyb")]
+transform = Transform3D(-0.46107265, 0, 0.88736236, 0, 1, 0, -0.88736236, 0, -0.46107265, 0, 0, 0)
+
+[node name="Block_07" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1113660955]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -56, 0, 56)
+
+[node name="Building_A" parent="AuthoredCity/Buildings/Block_07" unique_id=21656340 instance=ExtResource("12_bldb")]
+transform = Transform3D(-0.28518906, 0, 0.9584713, 0, 1, 0, -0.9584713, 0, -0.28518906, -2, 0, -1.8)
+
+[node name="Building_B" parent="AuthoredCity/Buildings/Block_07" unique_id=1033980521 instance=ExtResource("14_bldd")]
+transform = Transform3D(-0.049183827, 0, -0.9987897, 0, 1, 0, 0.9987897, 0, -0.049183827, 2, 0, 1.8)
+
+[node name="Block_08" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1453536788]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 0, -56)
+
+[node name="Building" parent="AuthoredCity/Buildings/Block_08" unique_id=305721541 instance=ExtResource("18_bldh")]
+transform = Transform3D(-0.7702313, 0, 0.6377647, 0, 1, 0, -0.6377647, 0, -0.7702313, 0, 0, 0)
+
+[node name="Block_09" type="Node3D" parent="AuthoredCity/Buildings" unique_id=113390243]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 0, -40)
+
+[node name="Building_A" parent="AuthoredCity/Buildings/Block_09" unique_id=386516801 instance=ExtResource("14_bldd")]
+transform = Transform3D(-0.78901476, 0, 0.6143742, 0, 1, 0, -0.6143742, 0, -0.78901476, -2, 0, -1.8)
+
+[node name="Building_B" parent="AuthoredCity/Buildings/Block_09" unique_id=354548723 instance=ExtResource("11_blda")]
+transform = Transform3D(-0.5556992, 0, -0.8313834, 0, 1, 0, 0.8313834, 0, -0.5556992, 2, 0, 1.8)
+
+[node name="Block_10" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1215760366]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 0, -24)
+
+[node name="Building" parent="AuthoredCity/Buildings/Block_10" unique_id=1152409652 instance=ExtResource("20_bldj")]
+transform = Transform3D(-0.99996465, 0, -0.008407343, 0, 1, 0, 0.008407343, 0, -0.99996465, 0, 0, 0)
+
+[node name="Block_11" type="Node3D" parent="AuthoredCity/Buildings" unique_id=108399642]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 0, -8)
+
+[node name="Tower" parent="AuthoredCity/Buildings/Block_11" unique_id=204124065 instance=ExtResource("27_skyc")]
+transform = Transform3D(-0.57482404, 0, -0.81827706, 0, 1, 0, 0.81827706, 0, -0.57482404, 0, 0, 0)
+
+[node name="Block_12" type="Node3D" parent="AuthoredCity/Buildings" unique_id=212120601]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 0, 8)
+
+[node name="Building" parent="AuthoredCity/Buildings/Block_12" unique_id=1934009464 instance=ExtResource("22_bldl")]
+transform = Transform3D(-0.7593991, 0, -0.65062505, 0, 1, 0, 0.65062505, 0, -0.7593991, 0, 0, 0)
+
+[node name="Block_13" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1259655824]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 0, 40)
+
+[node name="Building_A" parent="AuthoredCity/Buildings/Block_13" unique_id=1053657133 instance=ExtResource("13_bldc")]
+transform = Transform3D(-0.8373344, 0, -0.54669106, 0, 1, 0, 0.54669106, 0, -0.8373344, -2, 0, -1.8)
+
+[node name="Building_B" parent="AuthoredCity/Buildings/Block_13" unique_id=2082095667 instance=ExtResource("15_blde")]
+transform = Transform3D(-0.9951619, 0, 0.0982486, 0, 1, 0, -0.0982486, 0, -0.9951619, 2, 0, 1.8)
+
+[node name="Block_14" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1941298341]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 0, 56)
+
+[node name="Building" parent="AuthoredCity/Buildings/Block_14" unique_id=2048526255 instance=ExtResource("24_bldn")]
+transform = Transform3D(-0.16167603, 0, -0.9868439, 0, 1, 0, 0.9868439, 0, -0.16167603, 0, 0, 0)
+
+[node name="Block_15" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1397672608]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0, -40)
+
+[node name="Building_A" parent="AuthoredCity/Buildings/Block_15" unique_id=1905650718 instance=ExtResource("15_blde")]
+transform = Transform3D(-0.36384156, 0, -0.93146086, 0, 1, 0, 0.93146086, 0, -0.36384156, -2, 0, -1.8)
+
+[node name="Building_B" parent="AuthoredCity/Buildings/Block_15" unique_id=1187048726 instance=ExtResource("12_bldb")]
+transform = Transform3D(-0.80304587, 0, 0.5959172, 0, 1, 0, -0.5959172, 0, -0.80304587, 2, 0, 1.8)
+
+[node name="Block_16" type="Node3D" parent="AuthoredCity/Buildings" unique_id=540116908]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0, -24)
+
+[node name="Tower" parent="AuthoredCity/Buildings/Block_16" unique_id=1799907030 instance=ExtResource("28_skyd")]
+transform = Transform3D(0.99114394, 0, -0.13279182, 0, 1, 0, 0.13279182, 0, 0.99114394, 0, 0, 0)
+
+[node name="Block_17" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1187016947]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0, -8)
+
+[node name="Building_A" parent="AuthoredCity/Buildings/Block_17" unique_id=1367267896 instance=ExtResource("12_bldb")]
+transform = Transform3D(0.24508858, 0, -0.96950066, 0, 1, 0, 0.96950066, 0, 0.24508858, -2, 0, -1.8)
+
+[node name="Building_B" parent="AuthoredCity/Buildings/Block_17" unique_id=1283392587 instance=ExtResource("14_bldd")]
+transform = Transform3D(-0.38239676, 0, 0.92399824, 0, 1, 0, -0.92399824, 0, -0.38239676, 2, 0, 1.8)
+
+[node name="Block_18" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1413765332]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0, 8)
+
+[node name="Building" parent="AuthoredCity/Buildings/Block_18" unique_id=598637032 instance=ExtResource("14_bldd")]
+transform = Transform3D(0.9450053, 0, -0.327055, 0, 1, 0, 0.327055, 0, 0.9450053, 0, 0, 0)
+
+[node name="Block_19" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1603020014]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0, 24)
+
+[node name="Building_A" parent="AuthoredCity/Buildings/Block_19" unique_id=961097384 instance=ExtResource("14_bldd")]
+transform = Transform3D(0.7627862, 0, -0.64665073, 0, 1, 0, 0.64665073, 0, 0.7627862, -2, 0, -1.8)
+
+[node name="Building_B" parent="AuthoredCity/Buildings/Block_19" unique_id=650152402 instance=ExtResource("11_blda")]
+transform = Transform3D(0.14707568, 0, 0.98912525, 0, 1, 0, -0.98912525, 0, 0.14707568, 2, 0, 1.8)
+
+[node name="Block_20" type="Node3D" parent="AuthoredCity/Buildings" unique_id=2069397709]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 0, 56)
+
+[node name="Building" parent="AuthoredCity/Buildings/Block_20" unique_id=33184544 instance=ExtResource("16_bldf")]
+transform = Transform3D(0.9334744, 0, 0.35864395, 0, 1, 0, -0.35864395, 0, 0.9334744, 0, 0, 0)
+
+[node name="Block_21" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1035587245]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, -56)
+
+[node name="Tower" parent="AuthoredCity/Buildings/Block_21" unique_id=892331445 instance=ExtResource("29_skye")]
+transform = Transform3D(-0.3391547, 0, 0.94073063, 0, 1, 0, -0.94073063, 0, -0.3391547, 0, 0, 0)
+
+[node name="Block_22" type="Node3D" parent="AuthoredCity/Buildings" unique_id=636719536]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, -40)
+
+[node name="Building" parent="AuthoredCity/Buildings/Block_22" unique_id=1619719623 instance=ExtResource("18_bldh")]
+transform = Transform3D(0.48291603, 0, 0.8756667, 0, 1, 0, -0.8756667, 0, 0.48291603, 0, 0, 0)
+
+[node name="Block_23" type="Node3D" parent="AuthoredCity/Buildings" unique_id=407125833]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, -24)
+
+[node name="Building_A" parent="AuthoredCity/Buildings/Block_23" unique_id=1540002226 instance=ExtResource("13_bldc")]
+transform = Transform3D(0.8593419, 0, 0.5114015, 0, 1, 0, -0.5114015, 0, 0.8593419, -2, 0, -1.8)
+
+[node name="Building_B" parent="AuthoredCity/Buildings/Block_23" unique_id=562464526 instance=ExtResource("15_blde")]
+transform = Transform3D(0.94168764, 0, 0.3364883, 0, 1, 0, -0.3364883, 0, 0.94168764, 2, 0, 1.8)
+
+[node name="Block_24" type="Node3D" parent="AuthoredCity/Buildings" unique_id=590944312]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, 24)
+
+[node name="Building" parent="AuthoredCity/Buildings/Block_24" unique_id=337525921 instance=ExtResource("20_bldj")]
+transform = Transform3D(-0.19476569, 0, 0.9808498, 0, 1, 0, -0.9808498, 0, -0.19476569, 0, 0, 0)
+
+[node name="Block_25" type="Node3D" parent="AuthoredCity/Buildings" unique_id=115772957]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, 40)
+
+[node name="Building_A" parent="AuthoredCity/Buildings/Block_25" unique_id=2002401581 instance=ExtResource("15_blde")]
+transform = Transform3D(0.40225774, 0, 0.91552645, 0, 1, 0, -0.91552645, 0, 0.40225774, -2, 0, -1.8)
+
+[node name="Building_B" parent="AuthoredCity/Buildings/Block_25" unique_id=303959388 instance=ExtResource("12_bldb")]
+transform = Transform3D(0.9806944, 0, -0.19554654, 0, 1, 0, 0.19554654, 0, 0.9806944, 2, 0, 1.8)
+
+[node name="Block_26" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1174257108]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, -40)
+
+[node name="Tower" parent="AuthoredCity/Buildings/Block_26" unique_id=2004454002 instance=ExtResource("25_skya")]
+transform = Transform3D(-0.67839384, 0, -0.7346984, 0, 1, 0, 0.7346984, 0, -0.67839384, 0, 0, 0)
+
+[node name="Block_27" type="Node3D" parent="AuthoredCity/Buildings" unique_id=523731377]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, -24)
+
+[node name="Building_A" parent="AuthoredCity/Buildings/Block_27" unique_id=1080537441 instance=ExtResource("12_bldb")]
+transform = Transform3D(-0.20456451, 0, 0.9788531, 0, 1, 0, -0.9788531, 0, -0.20456451, -2, 0, -1.8)
+
+[node name="Building_B" parent="AuthoredCity/Buildings/Block_27" unique_id=1733000330 instance=ExtResource("14_bldd")]
+transform = Transform3D(0.7406126, 0, -0.6719322, 0, 1, 0, 0.6719322, 0, 0.7406126, 2, 0, 1.8)
+
+[node name="Block_28" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1292855224]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 24)
+
+[node name="Building" parent="AuthoredCity/Buildings/Block_28" unique_id=1799456279 instance=ExtResource("24_bldn")]
+transform = Transform3D(-0.99968195, 0, -0.025219174, 0, 1, 0, 0.025219174, 0, -0.99968195, 0, 0, 0)
+
+[node name="Block_29" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1170165427]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 40)
+
+[node name="Building_A" parent="AuthoredCity/Buildings/Block_29" unique_id=704863384 instance=ExtResource("14_bldd")]
+transform = Transform3D(-0.7352386, 0, 0.67780834, 0, 1, 0, -0.67780834, 0, -0.7352386, -2, 0, -1.8)
+
+[node name="Building_B" parent="AuthoredCity/Buildings/Block_29" unique_id=2051937313 instance=ExtResource("11_blda")]
+transform = Transform3D(0.2897654, 0, -0.9570977, 0, 1, 0, 0.9570977, 0, 0.2897654, 2, 0, 1.8)
+
+[node name="Block_30" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1950973993]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 56)
+
+[node name="Building" parent="AuthoredCity/Buildings/Block_30" unique_id=743440805 instance=ExtResource("12_bldb")]
+transform = Transform3D(-0.7483524, 0, -0.66330135, 0, 1, 0, 0.66330135, 0, -0.7483524, 0, 0, 0)
+
+[node name="Block_31" type="Node3D" parent="AuthoredCity/Buildings" unique_id=719759191]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0, -56)
+
+[node name="Tower" parent="AuthoredCity/Buildings/Block_31" unique_id=1172489398 instance=ExtResource("26_skyb")]
+transform = Transform3D(0.96473265, 0, -0.2632316, 0, 1, 0, 0.2632316, 0, 0.96473265, 0, 0, 0)
+
+[node name="Block_32" type="Node3D" parent="AuthoredCity/Buildings" unique_id=300977603]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0, -24)
+
+[node name="Building" parent="AuthoredCity/Buildings/Block_32" unique_id=995469259 instance=ExtResource("14_bldd")]
+transform = Transform3D(-0.14506029, 0, -0.9894228, 0, 1, 0, 0.9894228, 0, -0.14506029, 0, 0, 0)
+
+[node name="Block_33" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1053222519]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0, -8)
+
+[node name="Building_A" parent="AuthoredCity/Buildings/Block_33" unique_id=2027957092 instance=ExtResource("13_bldc")]
+transform = Transform3D(-0.8798632, 0, -0.4752271, 0, 1, 0, 0.4752271, 0, -0.8798632, -2, 0, -1.8)
+
+[node name="Building_B" parent="AuthoredCity/Buildings/Block_33" unique_id=1895428113 instance=ExtResource("15_blde")]
+transform = Transform3D(-0.70754546, 0, -0.70666784, 0, 1, 0, 0.70666784, 0, -0.70754546, 2, 0, 1.8)
+
+[node name="Block_34" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1871605689]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0, 8)
+
+[node name="Building" parent="AuthoredCity/Buildings/Block_34" unique_id=986639016 instance=ExtResource("16_bldf")]
+transform = Transform3D(0.5264553, 0, -0.8502028, 0, 1, 0, 0.8502028, 0, 0.5264553, 0, 0, 0)
+
+[node name="Block_35" type="Node3D" parent="AuthoredCity/Buildings" unique_id=678508767]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0, 24)
+
+[node name="Building_A" parent="AuthoredCity/Buildings/Block_35" unique_id=1799298195 instance=ExtResource("15_blde")]
+transform = Transform3D(-0.43997812, 0, -0.89800847, 0, 1, 0, 0.89800847, 0, -0.43997812, -2, 0, -1.8)
+
+[node name="Building_B" parent="AuthoredCity/Buildings/Block_35" unique_id=1486489431 instance=ExtResource("12_bldb")]
+transform = Transform3D(-0.97019124, 0, -0.24234061, 0, 1, 0, 0.24234061, 0, -0.97019124, 2, 0, 1.8)
+
+[node name="Block_36" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1632734128]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0, 40)
+
+[node name="Tower" parent="AuthoredCity/Buildings/Block_36" unique_id=1107925231 instance=ExtResource("27_skyc")]
+transform = Transform3D(-0.21123025, 0, 0.9774363, 0, 1, 0, -0.9774363, 0, -0.21123025, 0, 0, 0)
+
+[node name="Block_39" type="Node3D" parent="AuthoredCity/Buildings" unique_id=993180272]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 0, -24)
+
+[node name="Building_A" parent="AuthoredCity/Buildings/Block_39" unique_id=648657589 instance=ExtResource("14_bldd")]
+transform = Transform3D(0.70641863, 0, -0.70779425, 0, 1, 0, 0.70779425, 0, 0.70641863, -2, 0, -1.8)
+
+[node name="Building_B" parent="AuthoredCity/Buildings/Block_39" unique_id=991463152 instance=ExtResource("11_blda")]
+transform = Transform3D(-0.6710129, 0, 0.74144566, 0, 1, 0, -0.74144566, 0, -0.6710129, 2, 0, 1.8)
+
+[node name="Block_40" type="Node3D" parent="AuthoredCity/Buildings" unique_id=1517379732]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 0, 8)
+
+[node name="Building" parent="AuthoredCity/Buildings/Block_40" unique_id=386018846 instance=ExtResource("22_bldl")]
+transform = Transform3D(0.46812463, 0, 0.88366246, 0, 1, 0, -0.88366246, 0, 0.46812463, 0, 0, 0)
+
+[node name="Block_41" type="Node3D" parent="AuthoredCity/Buildings" unique_id=648917000]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 0, 24)
+
+[node name="Tower" parent="AuthoredCity/Buildings/Block_41" unique_id=2105035695 instance=ExtResource("28_skyd")]
+transform = Transform3D(-0.7699482, 0, -0.6381064, 0, 1, 0, 0.6381064, 0, -0.7699482, 0, 0, 0)
+
+[node name="Block_42" type="Node3D" parent="AuthoredCity/Buildings" unique_id=2098614029]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 0, 56)
+
+[node name="Building" parent="AuthoredCity/Buildings/Block_42" unique_id=1792425639 instance=ExtResource("24_bldn")]
+transform = Transform3D(-0.21123025, 0, 0.9774363, 0, 1, 0, -0.9774363, 0, -0.21123025, 0, 0, 0)
+
+[node name="Block_45" type="Node3D" parent="AuthoredCity/Buildings" unique_id=943677]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56, 0, -8)
+
+[node name="Building_A" parent="AuthoredCity/Buildings/Block_45" unique_id=2013793093 instance=ExtResource("15_blde")]
+transform = Transform3D(0.4769371, 0, 0.8789374, 0, 1, 0, -0.8789374, 0, 0.4769371, -2, 0, -1.8)
+
+[node name="Building_B" parent="AuthoredCity/Buildings/Block_45" unique_id=1351304210 instance=ExtResource("12_bldb")]
+transform = Transform3D(0.7735512, 0, 0.63373375, 0, 1, 0, -0.63373375, 0, 0.7735512, 2, 0, 1.8)
+
+[node name="Block_46" type="Node3D" parent="AuthoredCity/Buildings" unique_id=363218376]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56, 0, 8)
+
+[node name="Tower" parent="AuthoredCity/Buildings/Block_46" unique_id=246663334 instance=ExtResource("29_skye")]
+transform = Transform3D(0.92123413, 0, -0.38900858, 0, 1, 0, 0.38900858, 0, 0.92123413, 0, 0, 0)
+
+[node name="Block_47" type="Node3D" parent="AuthoredCity/Buildings" unique_id=598583438]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56, 0, 40)
+
+[node name="Building_A" parent="AuthoredCity/Buildings/Block_47" unique_id=192497274 instance=ExtResource("12_bldb")]
+transform = Transform3D(-0.122524634, 0, 0.9924655, 0, 1, 0, -0.9924655, 0, -0.122524634, -2, 0, -1.8)
+
+[node name="Building_B" parent="AuthoredCity/Buildings/Block_47" unique_id=1025779480 instance=ExtResource("14_bldd")]
+transform = Transform3D(0.9893069, 0, 0.14584845, 0, 1, 0, -0.14584845, 0, 0.9893069, 2, 0, 1.8)
+
+[node name="Block_48" type="Node3D" parent="AuthoredCity/Buildings" unique_id=408889187]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56, 0, 56)
+
+[node name="Building" parent="AuthoredCity/Buildings/Block_48" unique_id=110186444 instance=ExtResource("16_bldf")]
+transform = Transform3D(-0.73709315, 0, -0.67579114, 0, 1, 0, 0.67579114, 0, -0.73709315, 0, 0, 0)
+
+[node name="Markers" type="Node3D" parent="AuthoredCity" unique_id=621921803]
+
+[node name="PlayerStart" type="Marker3D" parent="AuthoredCity/Markers" unique_id=1308163749]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 32)
+gizmo_extents = 2.0
+
+[node name="building-a2" parent="." unique_id=385655681 instance=ExtResource("28_fv21b")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.804911, 0, 0.22171974)
+
+[node name="building-c2" parent="." unique_id=2080508772 instance=ExtResource("29_tel4y")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.766957, 1.273543, 0.1623742)
+
+[node name="building-skyscraper-b2" parent="." unique_id=1309229265 instance=ExtResource("30_qkpxi")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.812823, 2.3841858e-07, 2.8487628)

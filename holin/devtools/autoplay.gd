@@ -10,6 +10,10 @@ extends RefCounted
 
 const Joystick = preload("res://scripts/virtual_joystick.gd")
 
+# El movimiento responde en ~0.15 s. Corregir cada medio segundo hacía que el
+# bot cruzara de largo props chicos; 0.1 s se aproxima mejor a un dedo real.
+const STEER_EVERY_FRAMES := 6
+
 var hole: Node3D
 var joystick: Control
 
@@ -36,11 +40,10 @@ func steer() -> void:
 	# no puede tragar y no crece nunca.
 	var best: Node3D = null
 	var top := -1.0
-	var reach: float = hole.radius * 0.95
 	for c in _swallowables.get_children():
 		# Ojo: en Swallowables también viven los AudioStreamPlayer3D que suelta
 		# sfx.gd, así que hay que filtrar por grupo y no asumir el tipo.
-		if not c.is_in_group("swallowable") or c.swallow_size > reach:
+		if not c.is_in_group("swallowable") or not c.fits_hole(hole.radius):
 			continue
 		var d: float = c.global_position.distance_to(hole.global_position)
 		var v: float = float(c.xp_value) / (d + 3.0)

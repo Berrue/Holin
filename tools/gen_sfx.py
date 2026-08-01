@@ -22,6 +22,13 @@ Dos familias:
                hacia abajo mientras cae (el efecto doppler de dibujito) y
                chapa contra el fondo: parciales inarmónicos, que es lo que
                hace que algo suene a metal y no a tambor.
+
+  swallow_pop  Props chicos. Ataque corto y brillante con una gota tonal: tiene
+               que poder repetirse en cadena sin ensuciar la mezcla.
+  swallow_mid  Props medianos sin sonido propio. Golpe redondo, aire y una cola
+               grave corta; ocupa el espacio entre el pop y el derrumbe.
+  level_up      Acorde ascendente corto para marcar que cambió la capacidad del
+               agujero, no sólo un número del HUD.
 """
 
 import math
@@ -368,6 +375,74 @@ CARS = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Absorciones genéricas
+# ---------------------------------------------------------------------------
+
+def swallow_tone(dur, f_start, f_end, noise_gain, body_gain, seed):
+    """Golpe descendente compacto. La caída de tono da sensación de profundidad."""
+    rnd = random.Random(seed)
+    n = int(SR * dur)
+    tone = [0.0] * n
+    noise = [rnd.uniform(-1.0, 1.0) for _ in range(n)]
+    noise = bandpass(noise, 500 if dur < 0.2 else 180, 5200 if dur < 0.2 else 2600)
+    phase = 0.0
+    for i in range(n):
+        t = i / n
+        f = f_start * (f_end / f_start) ** (t ** 0.55)
+        phase += f / SR
+        attack = min(1.0, t / 0.025)
+        tone[i] = math.sin(TAU * phase) * attack * math.exp(-5.5 * t)
+        noise[i] *= math.exp(-12.0 * t)
+    tone = set_rms(tone, body_gain)
+    noise = set_rms(noise, noise_gain)
+    mix = [tone[i] + noise[i] for i in range(n)]
+    return fade_edges(normalize(soft_clip(mix, 1.5)), ms_in=2.0, ms_out=24.0)
+
+
+SWALLOW_POPS = [
+    ("swallow_pop_1.wav", dict(dur=0.13, f_start=760, f_end=210,
+                               noise_gain=0.10, body_gain=0.22, seed=401)),
+    ("swallow_pop_2.wav", dict(dur=0.15, f_start=640, f_end=175,
+                               noise_gain=0.09, body_gain=0.24, seed=402)),
+    ("swallow_pop_3.wav", dict(dur=0.12, f_start=880, f_end=250,
+                               noise_gain=0.11, body_gain=0.20, seed=403)),
+]
+
+SWALLOW_MIDS = [
+    ("swallow_mid_1.wav", dict(dur=0.34, f_start=260, f_end=72,
+                               noise_gain=0.16, body_gain=0.31, seed=501)),
+    ("swallow_mid_2.wav", dict(dur=0.40, f_start=220, f_end=58,
+                               noise_gain=0.18, body_gain=0.33, seed=502)),
+    ("swallow_mid_3.wav", dict(dur=0.31, f_start=310, f_end=82,
+                               noise_gain=0.15, body_gain=0.29, seed=503)),
+]
+
+
+def level_up(dur=0.72):
+    n = int(SR * dur)
+    out = [0.0] * n
+    # Tres notas ascendentes, solapadas: reconocimiento inmediato sin una cola
+    # larga que tape los sonidos de los primeros objetos del nivel nuevo.
+    for start, freq in ((0.00, 440.0), (0.10, 554.37), (0.20, 659.25)):
+        off = int(start * SR)
+        for i in range(n - off):
+            t = i / SR
+            env = min(1.0, t / 0.012) * math.exp(-5.8 * t)
+            shimmer = (math.sin(TAU * freq * t)
+                       + 0.42 * math.sin(TAU * freq * 2.0 * t)
+                       + 0.18 * math.sin(TAU * freq * 3.01 * t))
+            out[off + i] += shimmer * env
+    # Barrido grave suave: une el acorde con el crecimiento físico de la boca.
+    phase = 0.0
+    for i in range(n):
+        t = i / n
+        freq = 95.0 * (2.1 ** t)
+        phase += freq / SR
+        out[i] += math.sin(TAU * phase) * math.sin(math.pi * t) * 0.34
+    return fade_edges(normalize(soft_clip(out, 1.35)), ms_in=3.0, ms_out=55.0)
+
+
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     print(f"Generando en {OUT_DIR}")
@@ -380,6 +455,11 @@ def main():
     print("Autos:")
     for name, params in CARS:
         write_wav(name, car(**params))
+    print("Absorciones genéricas:")
+    for name, params in SWALLOW_POPS + SWALLOW_MIDS:
+        write_wav(name, swallow_tone(**params))
+    print("Crecimiento:")
+    write_wav("level_up.wav", level_up())
 
 
 if __name__ == "__main__":

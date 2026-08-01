@@ -1,0 +1,16 @@
+[gd_resource type="StandardMaterial3D" load_steps=2 format=3 uid="uid://b0pal0base0001"]
+
+; Paleta original del pack Kenney. Es un ARCHIVO y no un material creado por
+; código a propósito: Godot cachea el recurso, así que todas las instancias que
+; lo referencien comparten el mismo objeto y el renderer las junta en un solo
+; draw call. Un material nuevo por instancia serían draw calls regalados.
+;
+; Los valores replican el material que traen los .glb (roughness 1, sin metal,
+; albedo blanco): lo único que cambia entre paletas es el atlas.
+
+[ext_resource type="Texture2D" path="res://assets/kenney_city/Textures/colormap.png" id="1_tex"]
+
+[resource]
+resource_name = "Ciudad — paleta base"
+albedo_texture = ExtResource("1_tex")
+roughness = 1.0

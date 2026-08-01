@@ -53,7 +53,7 @@ func _process(_delta: float) -> bool:
 			_next_report = _main.GAME_DURATION - REPORT_EVERY_SECS
 			_ready_done = true
 		return false
-	if _frame % 30 == 0:
+	if _frame % Autoplay.STEER_EVERY_FRAMES == 0:
 		_bot.steer()
 	_peak_objs = maxi(_peak_objs, Performance.get_monitor(Performance.OBJECT_COUNT))
 	_max_mult = maxi(_max_mult, _main.combo_mult())

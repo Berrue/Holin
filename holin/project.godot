@@ -11,9 +11,13 @@ config_version=5
 [application]
 
 config/name="Holin"
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="res://scenes/main_menu.tscn"
 config/features=PackedStringArray("4.6", "Mobile")
 config/icon="res://icon.svg"
+
+[autoload]
+
+NetworkSession="*res://scripts/network_session.gd"
 
 [display]
 
@@ -65,11 +69,9 @@ pointing/emulate_touch_from_mouse=true
 
 [rendering]
 
-; Android exige ETC2/ASTC: sin esto la exportacion falla con
-; "configuration errors" sin decir cual.
-textures/vram_compression/import_etc2_astc=true
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="mobile"
+textures/vram_compression/import_etc2_astc=true
 
 [shader_globals]
 

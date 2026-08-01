@@ -1,8 +1,8 @@
-[gd_scene format=3 uid="uid://bnal05micdvnk"]
+[gd_scene load_steps=2 format=3 uid="uid://bnal05micdvnk"]
 
-[ext_resource type="Script" uid="uid://0m3yjy3phouf" path="res://scripts/main_menu.gd" id="1_menu"]
+[ext_resource type="Script" path="res://scripts/main_menu.gd" id="1_menu"]
 
-[node name="MainMenu" type="Control" unique_id=1505945224]
+[node name="MainMenu" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -11,41 +11,100 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_menu")
 
-[node name="Background" type="ColorRect" parent="." unique_id=990170738]
+[node name="Background" type="ColorRect" parent="."]
 layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
-color = Color(0.12, 0.13, 0.18, 1)
+color = Color(0.07, 0.08, 0.12, 1)
 
-[node name="Center" type="CenterContainer" parent="." unique_id=1294321756]
+[node name="Center" type="CenterContainer" parent="."]
 layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
 
-[node name="VBox" type="VBoxContainer" parent="Center" unique_id=684116814]
+[node name="VBox" type="VBoxContainer" parent="Center"]
+custom_minimum_size = Vector2(520, 0)
 layout_mode = 2
-theme_override_constants/separation = 24
+theme_override_constants/separation = 16
 
-[node name="Title" type="Label" parent="Center/VBox" unique_id=223013421]
+[node name="Title" type="Label" parent="Center/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.95, 0.55, 0.35, 1)
-theme_override_font_sizes/font_size = 96
+theme_override_font_sizes/font_size = 86
 text = "HOLIN"
 horizontal_alignment = 1
 
-[node name="Subtitle" type="Label" parent="Center/VBox" unique_id=904877086]
+[node name="Subtitle" type="Label" parent="Center/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.85, 0.87, 0.9, 1)
-theme_override_font_sizes/font_size = 28
+theme_override_font_sizes/font_size = 25
 text = "Tragate toda la ciudad"
 horizontal_alignment = 1
 
-[node name="Spacer" type="Control" parent="Center/VBox" unique_id=646703401]
-custom_minimum_size = Vector2(0, 20)
+[node name="NameEdit" type="LineEdit" parent="Center/VBox"]
+custom_minimum_size = Vector2(0, 58)
 layout_mode = 2
+theme_override_font_sizes/font_size = 24
+placeholder_text = "Tu nombre"
+text = "Jugador"
+max_length = 18
 
-[node name="PlayButton" type="Button" parent="Center/VBox" unique_id=945694533]
-custom_minimum_size = Vector2(300, 80)
+[node name="OfflineButton" type="Button" parent="Center/VBox"]
+custom_minimum_size = Vector2(0, 68)
 layout_mode = 2
-theme_override_font_sizes/font_size = 36
-text = "JUGAR"
+theme_override_font_sizes/font_size = 28
+text = "JUGAR OFFLINE"
+
+[node name="AddressEdit" type="LineEdit" parent="Center/VBox"]
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+placeholder_text = "IP del host"
+text = "127.0.0.1"
+
+[node name="NetworkRow" type="HBoxContainer" parent="Center/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="HostButton" type="Button" parent="Center/VBox/NetworkRow"]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 24
+text = "CREAR"
+
+[node name="JoinButton" type="Button" parent="Center/VBox/NetworkRow"]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 24
+text = "UNIRSE"
+
+[node name="Status" type="Label" parent="Center/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.88, 1, 1)
+theme_override_font_sizes/font_size = 21
+text = "Sin conexion"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="Players" type="Label" parent="Center/VBox"]
+visible = false
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="StartButton" type="Button" parent="Center/VBox"]
+visible = false
+custom_minimum_size = Vector2(0, 68)
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "INICIAR PARTIDA"
+
+[node name="CancelButton" type="Button" parent="Center/VBox"]
+visible = false
+custom_minimum_size = Vector2(0, 54)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "CANCELAR"

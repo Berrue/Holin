@@ -15,12 +15,12 @@ holin/
 ├── project.godot        # proyecto vacío recién creado
 ├── icon.svg
 └── assets/
-    └── kenney_city/      # 41 modelos .glb (CC0, City Kit de Kenney)
-        ├── building-a.glb ... building-n.glb
-        ├── building-skyscraper-a.glb ... -e.glb
-        ├── low-detail-building-*.glb
-        ├── detail-*.glb
-        └── Textures/colormap.png   # los .glb la referencian por ruta relativa
+	└── kenney_city/      # 41 modelos .glb (CC0, City Kit de Kenney)
+		├── building-a.glb ... building-n.glb
+		├── building-skyscraper-a.glb ... -e.glb
+		├── low-detail-building-*.glb
+		├── detail-*.glb
+		└── Textures/colormap.png   # los .glb la referencian por ruta relativa
 ```
 
 Los `.glb` se importan nativos en Godot 4. No tocar la carpeta `Textures/` ni mover los `.glb` (rompería la ruta de la textura embebida por referencia).
@@ -115,7 +115,7 @@ Main (Node3D)                  # script: main.gd
 ├── Hole                        # instancia de hole.tscn
 ├── Swallowables (Node3D)       # contenedor; se llena por código en _ready
 └── UI (CanvasLayer)
-    └── ScoreLabel (Label)      # "Tragados: 0" o "Masa: 0"
+	└── ScoreLabel (Label)      # "Tragados: 0" o "Masa: 0"
 ```
 
 ---
@@ -143,63 +143,63 @@ var _drag_input: Vector2 = Vector2.ZERO   # input táctil/mouse acumulado
 signal swallowed(amount: float, total_mass: float)
 
 func _ready() -> void:
-    _apply_radius()
+	_apply_radius()
 
 func _physics_process(delta: float) -> void:
-    var dir := _get_move_direction()
-    # mover en el plano XZ
-    global_position += Vector3(dir.x, 0.0, dir.y) * move_speed * delta
-    _check_swallow()
+	var dir := _get_move_direction()
+	# mover en el plano XZ
+	global_position += Vector3(dir.x, 0.0, dir.y) * move_speed * delta
+	_check_swallow()
 
 func _get_move_direction() -> Vector2:
-    # teclado (desktop) + input táctil/mouse (drag)
-    var kb := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-    if kb != Vector2.ZERO:
-        return kb
-    if _drag_input != Vector2.ZERO:
-        return _drag_input.normalized()
-    return Vector2.ZERO
+	# teclado (desktop) + input táctil/mouse (drag)
+	var kb := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	if kb != Vector2.ZERO:
+		return kb
+	if _drag_input != Vector2.ZERO:
+		return _drag_input.normalized()
+	return Vector2.ZERO
 
 func _input(event: InputEvent) -> void:
-    # arrastrar dedo (móvil) o mouse (desktop) define dirección
-    if event is InputEventScreenDrag:
-        _drag_input = event.relative
-    elif event is InputEventScreenTouch and not event.pressed:
-        _drag_input = Vector2.ZERO
-    elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-        _drag_input = event.relative
-    elif event is InputEventMouseButton and not event.pressed:
-        _drag_input = Vector2.ZERO
+	# arrastrar dedo (móvil) o mouse (desktop) define dirección
+	if event is InputEventScreenDrag:
+		_drag_input = event.relative
+	elif event is InputEventScreenTouch and not event.pressed:
+		_drag_input = Vector2.ZERO
+	elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		_drag_input = event.relative
+	elif event is InputEventMouseButton and not event.pressed:
+		_drag_input = Vector2.ZERO
 
 func _check_swallow() -> void:
-    for area in detection_area.get_overlapping_areas():
-        if not area.is_in_group("swallowable"):
-            continue
-        if area.has_meta("being_swallowed"):
-            continue
-        var sw_size: float = area.get("swallow_size")
-        # distancia horizontal centro-agujero -> centro-objeto
-        var hpos := Vector2(global_position.x, global_position.z)
-        var opos := Vector2(area.global_position.x, area.global_position.z)
-        var dist := hpos.distance_to(opos)
-        if sw_size <= radius and dist < radius * 0.9:
-            area.set_meta("being_swallowed", true)
-            area.call("be_swallowed", global_position)
-            _grow(sw_size)
-        elif sw_size > radius and dist < radius * 1.1:
-            area.call("wobble")  # feedback "todavía no podés"
+	for area in detection_area.get_overlapping_areas():
+		if not area.is_in_group("swallowable"):
+			continue
+		if area.has_meta("being_swallowed"):
+			continue
+		var sw_size: float = area.get("swallow_size")
+		# distancia horizontal centro-agujero -> centro-objeto
+		var hpos := Vector2(global_position.x, global_position.z)
+		var opos := Vector2(area.global_position.x, area.global_position.z)
+		var dist := hpos.distance_to(opos)
+		if sw_size <= radius and dist < radius * 0.9:
+			area.set_meta("being_swallowed", true)
+			area.call("be_swallowed", global_position)
+			_grow(sw_size)
+		elif sw_size > radius and dist < radius * 1.1:
+			area.call("wobble")  # feedback "todavía no podés"
 
 func _grow(amount: float) -> void:
-    mass += amount
-    radius += amount * growth_per_unit
-    _apply_radius()
-    emit_signal("swallowed", amount, mass)
+	mass += amount
+	radius += amount * growth_per_unit
+	_apply_radius()
+	emit_signal("swallowed", amount, mass)
 
 func _apply_radius() -> void:
-    # escalar el disco visual y el shape de detección
-    visual.scale = Vector3(radius, 1.0, radius)
-    if shape.shape is CylinderShape3D:
-        (shape.shape as CylinderShape3D).radius = radius
+	# escalar el disco visual y el shape de detección
+	visual.scale = Vector3(radius, 1.0, radius)
+	if shape.shape is CylinderShape3D:
+		(shape.shape as CylinderShape3D).radius = radius
 ```
 
 ### 5.2 `swallowable.gd`
@@ -210,28 +210,28 @@ extends Area3D
 @export var swallow_size: float = 1.0
 
 func _ready() -> void:
-    add_to_group("swallowable")
+	add_to_group("swallowable")
 
 func be_swallowed(hole_center: Vector3) -> void:
-    # animación de succión: caer hacia el centro + bajar + encoger + rotar
-    var tween := create_tween().set_parallel(true)
-    var target := Vector3(hole_center.x, hole_center.y - 1.5, hole_center.z)
-    tween.tween_property(self, "global_position", target, 0.35).set_ease(Tween.EASE_IN)
-    tween.tween_property(self, "scale", Vector3.ZERO, 0.35).set_ease(Tween.EASE_IN)
-    tween.tween_property(self, "rotation", rotation + Vector3(0, TAU, 0), 0.35)
-    tween.chain().tween_callback(queue_free)
+	# animación de succión: caer hacia el centro + bajar + encoger + rotar
+	var tween := create_tween().set_parallel(true)
+	var target := Vector3(hole_center.x, hole_center.y - 1.5, hole_center.z)
+	tween.tween_property(self, "global_position", target, 0.35).set_ease(Tween.EASE_IN)
+	tween.tween_property(self, "scale", Vector3.ZERO, 0.35).set_ease(Tween.EASE_IN)
+	tween.tween_property(self, "rotation", rotation + Vector3(0, TAU, 0), 0.35)
+	tween.chain().tween_callback(queue_free)
 
 func wobble() -> void:
-    # pequeño feedback de "no entrás todavía"
-    if has_meta("wobbling"):
-        return
-    set_meta("wobbling", true)
-    var t := create_tween()
-    var base := position
-    t.tween_property(self, "position", base + Vector3(0.05, 0, 0), 0.04)
-    t.tween_property(self, "position", base - Vector3(0.05, 0, 0), 0.04)
-    t.tween_property(self, "position", base, 0.04)
-    t.tween_callback(func(): remove_meta("wobbling"))
+	# pequeño feedback de "no entrás todavía"
+	if has_meta("wobbling"):
+		return
+	set_meta("wobbling", true)
+	var t := create_tween()
+	var base := position
+	t.tween_property(self, "position", base + Vector3(0.05, 0, 0), 0.04)
+	t.tween_property(self, "position", base - Vector3(0.05, 0, 0), 0.04)
+	t.tween_property(self, "position", base, 0.04)
+	t.tween_callback(func(): remove_meta("wobbling"))
 ```
 
 ### 5.3 `main.gd`
@@ -247,27 +247,27 @@ extends Node3D
 var count := 0
 
 func _ready() -> void:
-    _spawn_field()
-    hole.swallowed.connect(_on_swallowed)
-    _update_label()
+	_spawn_field()
+	hole.swallowed.connect(_on_swallowed)
+	_update_label()
 
 func _spawn_field() -> void:
-    # grilla de objetos de tamaños variados sobre el plano
-    var sizes := [0.5, 0.8, 1.0, 1.5, 2.0, 3.0]
-    for x in range(-20, 21, 4):
-        for z in range(-20, 21, 4):
-            var s = swallowable_scene.instantiate()
-            s.swallow_size = sizes[randi() % sizes.size()]
-            s.scale = Vector3.ONE * s.swallow_size
-            s.position = Vector3(x + randf_range(-1, 1), s.swallow_size * 0.5, z + randf_range(-1, 1))
-            swallowables.add_child(s)
+	# grilla de objetos de tamaños variados sobre el plano
+	var sizes := [0.5, 0.8, 1.0, 1.5, 2.0, 3.0]
+	for x in range(-20, 21, 4):
+		for z in range(-20, 21, 4):
+			var s = swallowable_scene.instantiate()
+			s.swallow_size = sizes[randi() % sizes.size()]
+			s.scale = Vector3.ONE * s.swallow_size
+			s.position = Vector3(x + randf_range(-1, 1), s.swallow_size * 0.5, z + randf_range(-1, 1))
+			swallowables.add_child(s)
 
 func _on_swallowed(_amount: float, _total: float) -> void:
-    count += 1
-    _update_label()
+	count += 1
+	_update_label()
 
 func _update_label() -> void:
-    score_label.text = "Tragados: %d  |  Tamaño: %.1f" % [count, hole.radius]
+	score_label.text = "Tragados: %d  |  Tamaño: %.1f" % [count, hole.radius]
 ```
 
 > Asignar `swallowable_scene` = `swallowable.tscn` en el inspector de `Main`.
